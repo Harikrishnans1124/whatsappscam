@@ -36,13 +36,13 @@ A shopper gets a deal from a "seller" claiming to be a famous brand. They enter 
 
 **Goal:** a clean starting point.
 
-- [ ] Create GitHub repo `trustshop-ai` (MIT license, Python `.gitignore`)
-- [ ] Create the folder structure from the README
-- [ ] Create a virtualenv; add `requirements.txt` / `requirements-dev.txt` (see `docs/DEVELOPMENT.md`)
-- [ ] `docker-compose.yml` with **Redis only** for now
-- [ ] Add `config/settings.yaml`
-- [ ] Copy the docs from this folder into `docs/`
-- [ ] First commit: `chore: project skeleton`
+- [x] Create GitHub repo `trustshop-ai` (MIT license, Python `.gitignore`)
+- [x] Create the folder structure from the README
+- [x] Create a virtualenv; add `requirements.txt` / `requirements-dev.txt` (see `docs/DEVELOPMENT.md`)
+- [x] `docker-compose.yml` with **Redis only** for now
+- [x] Add `config/settings.yaml`
+- [x] Copy the docs from this folder into `docs/`
+- [x] First commit: `chore: project skeleton`
 
 **Done when:** `docker compose up redis -d` works and `redis-cli ping` returns `PONG`.
 
@@ -54,21 +54,21 @@ A shopper gets a deal from a "seller" claiming to be a famous brand. They enter 
 
 **Learn first (2–3 hours):** `phonenumbers` basics, `tldextract`, a little regex, YAML, SQLite/SQLAlchemy basics (TECH_STACK §3–5).
 
-- [ ] **Build the registry data** (this is real work; budget a full day)
-  - [ ] Pick about 10 commonly impersonated brands
-  - [ ] For each, collect official domains, published phone numbers (or none), legal names, payment policy
-  - [ ] Record `source URL` + `verified_on` for every entry; use only the brand's own site or app
-  - [ ] Save to `registry/brands.yaml`
-- [ ] `registry.py` + `scripts/seed_registry.py` (reject entries without source and date)
-- [ ] `extraction.py`:
-  - [ ] normalize phone numbers (E.164, valid?, type)
-  - [ ] extract URLs and registrable domains from text
-  - [ ] extract UPI-like IDs (and avoid treating emails as UPI IDs)
-  - [ ] detect claimed brand from user input, aliases, and domains
-- [ ] `agents/brand_identity.py`: outcomes `MATCH`, `MISMATCH`, `UNKNOWN_BRAND`, `NO_BRAND_CLAIM`; return the standard scorer shape (`status`, `risk`, `reasons`, `flags`, `evidence`)
-- [ ] A command-line script that takes a number/URL/brand and prints the scorer output
-- [ ] Unit tests for extraction and brand matching (include messy phone formats)
-- [ ] Commit: `feat: registry, extraction, brand identity scorer`
+- [x] **Build the registry data** (this is real work; budget a full day)
+  - [x] Pick about 10 commonly impersonated brands
+  - [x] For each, collect official domains, published phone numbers (or none), legal names, payment policy
+  - [x] Record `source URL` + `verified_on` for every entry; use only the brand's own site or app
+  - [x] Save to `registry/brands.yaml`
+- [x] `registry.py` + `scripts/seed_registry.py` (reject entries without source and date)
+- [x] `extraction.py`:
+  - [x] normalize phone numbers (E.164, valid?, type)
+  - [x] extract URLs and registrable domains from text
+  - [x] extract UPI-like IDs (and avoid treating emails as UPI IDs)
+  - [x] detect claimed brand from user input, aliases, and domains
+- [x] `agents/brand_identity.py`: outcomes `MATCH`, `MISMATCH`, `UNKNOWN_BRAND`, `NO_BRAND_CLAIM`; return the standard scorer shape (`status`, `risk`, `reasons`, `flags`, `evidence`)
+- [x] A command-line script that takes a number/URL/brand and prints the scorer output
+- [x] Unit tests for extraction and brand matching (include messy phone formats)
+- [x] Commit: `feat: registry, extraction, brand identity scorer`
 
 **Done when:** for your 10 brands, official contacts match, a wrong number gives `MISMATCH`, and an unknown brand gives `UNKNOWN_BRAND`.
 

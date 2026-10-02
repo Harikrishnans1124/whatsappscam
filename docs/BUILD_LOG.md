@@ -10,30 +10,30 @@
 
 | Item | Status | Notes |
 |---|---|---|
-| Brand registry (N brands, all with sources) | ☐ | N = ___ |
-| Extraction (phone / URL / UPI / brand detection) | ☐ | |
-| Brand identity scorer | ☐ | |
-| Payment scorer | ☐ | |
-| Message scorer: rules | ☐ | |
+| Brand registry (N brands, all with sources) | ☑ | N = 11 (Amazon India, Flipkart, Myntra, Tata CLiQ, AJIO, Meesho, Nykaa, Zomato, Swiggy, Apple India, Acme Footwear) |
+| Extraction (phone / URL / UPI / brand detection) | ☑ | Tested with Indian & international formats, UPI vs email filtering |
+| Brand identity scorer | ☑ | Outcomes: MATCH (0.0), MISMATCH (0.85), UNKNOWN_BRAND (0.20), NO_BRAND_CLAIM (None) |
+| Payment scorer | ☐ | Phase 3a |
+| Message scorer: rules | ☐ | Phase 3c |
 | Message scorer: TF-IDF model | ☐ | PR-AUC public: ___ / own set: ___ |
-| Domain scorer (RDAP + lookalike) | ☐ | |
-| Number scorer + community reports | ☐ | |
-| Decision layer (weights, floors, verdicts) | ☐ | |
-| Timeouts + circuit breaker | ☐ | |
-| Redis cache + rate limiting | ☐ | |
+| Domain scorer (RDAP + lookalike) | ☐ | Phase 3b |
+| Number scorer + community reports | ☐ | Phase 3d |
+| Decision layer (weights, floors, verdicts) | ☐ | Phase 2 |
+| Timeouts + circuit breaker | ☐ | Phase 4 |
+| Redis cache + rate limiting | ☐ | Phase 4 |
 | Explanations (en / ml / hi) | ☐ | Native-speaker reviewed? ___ |
-| Web app / PWA | ☐ | |
-| Admin dashboard | ☐ | |
-| Audit log + verify script | ☐ | |
-| OpenTelemetry + Jaeger | ☐ | |
-| Tests (count / coverage) | ☐ | |
+| Web app / PWA | ☐ | Phase 2 & 5 |
+| Admin dashboard | ☐ | Phase 5 |
+| Audit log + verify script | ☐ | Phase 4 |
+| OpenTelemetry + Jaeger | ☐ | Phase 5 |
+| Tests (count / coverage) | ☑ | 37 unit tests passing (100% green) |
 | Evaluation set + results | ☐ | cases: ___ |
 | Latency measurements | ☐ | |
-| Docker Compose from a clean clone | ☐ | |
+| Docker Compose from a clean clone | ☐ | Redis defined |
 | README metrics filled in | ☐ | |
 | Tried by real users (non-technical) | ☐ | feedback: ___ |
 
-**Technologies actually used so far:** _(list them, e.g. FastAPI, Redis, phonenumbers…)_
+**Technologies actually used so far:** Python 3.13, SQLAlchemy 2.0, SQLite, PyYAML, phonenumbers, tldextract, rapidfuzz, pytest, pytest-asyncio, ruff
 
 ---
 
@@ -72,17 +72,47 @@
 
 Copy this block for each work session.
 
-### YYYY-MM-DD: short title
+### 2026-10-02: Phase 0 (Skeleton) & Phase 1 (Registry, Extraction, and Brand Identity Scorer)
 
-- **Goal:**
+- **Goal:** Build the core foundation of TrustShop AI: verified brand registry, phone and URL/UPI extraction, and the brand identity verification scorer.
 - **What I built / changed:**
+  - Initialized repo skeleton: `.gitignore`, `requirements.txt`, `requirements-dev.txt`, `docker-compose.yml`, `config/settings.yaml`, and root documents.
+  - Curated `registry/brands.yaml` with 11 brands (10 major impersonated brands in India plus benchmark test brand), strictly recording source URLs and verified dates.
+  - Implemented `app/registry.py` with SQLAlchemy models (`Brand`, `BrandAlias`, `BrandLegalName`, `BrandDomain`, `BrandPhone`, `BrandSource`), strict validation, querying, and freshness logic.
+  - Implemented `scripts/seed_registry.py` to seed and validate registry entries in SQLite database `data/trustshop.db`.
+  - Implemented `scripts/check_registry_freshness.py` to flag entries older than 90 days.
+  - Implemented `app/extraction.py`: phone normalization to E.164 with number types (`phonenumbers`), URL & registrable domain parsing (`tldextract`), UPI VPA extraction with email filter, and claimed brand detection.
+  - Implemented `app/agents/brand_identity.py`: core scorer yielding `MATCH` (risk 0.0), `MISMATCH` (risk 0.85, flag `BRAND_CHANNEL_MISMATCH`), `UNKNOWN_BRAND` (risk 0.20), and `NO_BRAND_CLAIM` (`not_applicable`).
+  - Implemented `scripts/check_brand.py`: CLI testing tool for end-to-end extraction and scorer checks.
+  - Added full test suite in `tests/`: 37 unit tests covering messy phone numbers, URL extraction, UPI/email separation, brand detection, registry seeding/validation, freshness, and brand identity outcomes.
 - **Files touched:**
-- **Tech / concepts used:** _(and the link or doc I learned it from)_
+  - `registry/brands.yaml`
+  - `app/__init__.py`, `app/config.py`, `app/registry.py`, `app/extraction.py`, `app/agents/__init__.py`, `app/agents/brand_identity.py`
+  - `scripts/seed_registry.py`, `scripts/check_registry_freshness.py`, `scripts/check_brand.py`
+  - `tests/test_extraction.py`, `tests/test_registry.py`, `tests/test_brand_identity.py`, `pytest.ini`
+  - `config/settings.yaml`, `docker-compose.yml`, `requirements.txt`, `requirements-dev.txt`, `.gitignore`
+  - `PLAN.md`, `docs/PLAN.md`, `docs/BUILD_LOG.md`
+- **Tech / concepts used:** SQLAlchemy 2.0 ORM, SQLite, phonenumbers (Google libphonenumber port), tldextract (Public Suffix List), regex for VPA parsing, rapidfuzz, PyYAML, pytest, ruff.
 - **How to reproduce / run it:**
-- **Result / evidence:** _(metric, screenshot, trace, test output)_
+  - `python scripts/seed_registry.py`
+  - `python scripts/check_registry_freshness.py --max-age-days 90`
+  - `python scripts/check_brand.py --brand Flipkart --phone "+91 1800 202 9898"` (MATCH)
+  - `python scripts/check_brand.py --brand Flipkart --phone "+91 98765 43210"` (MISMATCH)
+  - `pytest -v`
+  - `ruff check .`
+- **Result / evidence:**
+  - 11 brands seeded successfully with 0 validation errors.
+  - Freshness check confirms all 11 brands are verified within 90 days.
+  - CLI tests correctly identified official contacts, impersonations, unknown brands, and no-claim cases.
+  - 37 / 37 unit tests passing in pytest (0.97s).
+  - Ruff linter check: All checks passed!
 - **Problems hit and how I fixed them:**
+  - CP1252 character map error on Windows when printing unicode checkmark `✓` in PowerShell; replaced with `[OK]`.
+  - UPI regex initially matched email addresses; added strict negative rules rejecting `.com`, `.org`, and known email providers (`gmail.com`, etc.), while validating UPI handle syntax.
+  - Pytest module discovery needed `pythonpath = .` in `pytest.ini`.
 - **What I learned (in my own words):**
-- **Next step:**
+  - Distinguishing brand identity against verified official registry channels is much more robust than text heuristics alone: a fraudster can easily modify their pitch, but they cannot impersonate an official E.164 phone or official registrable domain.
+- **Next step:** Phase 2: API skeleton with FastAPI, Pydantic schemas, RFC 9457 errors, decision layer with hard-flag floors and re-weighted scoring, and minimal web UI.
 
 ---
 

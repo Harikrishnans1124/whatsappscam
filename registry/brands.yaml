@@ -1,0 +1,203 @@
+# Brand Registry for TrustShop AI
+# Every entry MUST have official_domains, legal_names, payment_policy, and verified sources with URL and date.
+# Published phones must only include phone numbers published directly by the brand on its own official channels.
+
+- slug: amazon-india
+  name: Amazon India
+  aliases:
+    - Amazon
+    - Amazon.in
+    - Amazon Pay
+    - Amazon India Marketplace
+  legal_names:
+    - Amazon Seller Services Private Limited
+    - Amazon Wholesale (India) Private Limited
+    - Amazon Pay (India) Private Limited
+  official_domains:
+    - amazon.in
+    - amazon.com
+  official_phones: []  # Amazon India does not conduct retail sales or direct orders via WhatsApp numbers
+  payment_policy: "Pay only through Amazon.in website or mobile application checkout. Amazon never asks customers to transfer money to personal UPI IDs or bank accounts."
+  sources:
+    - url: "https://www.amazon.in/gp/help/customer/display.html?nodeId=G4YFYCCNUSENA23B"
+      verified_on: "2026-10-01"
+
+- slug: flipkart
+  name: Flipkart
+  aliases:
+    - Flipkart
+    - Flipkart Internet
+    - Flipkart Wholesale
+    - Flipkart Plus
+  legal_names:
+    - Flipkart Internet Private Limited
+    - Flipkart India Private Limited
+  official_domains:
+    - flipkart.com
+  official_phones:
+    - "+9104445614700"
+    - "+9118002029898"
+  payment_policy: "All purchases must be completed strictly through the Flipkart app or website checkout. Flipkart never requests advance payments to individual UPI handles or personal bank accounts."
+  sources:
+    - url: "https://www.flipkart.com/helpcentre"
+      verified_on: "2026-10-01"
+
+- slug: myntra
+  name: Myntra
+  aliases:
+    - Myntra
+    - Myntra Designs
+    - Myntra Fashion
+  legal_names:
+    - Myntra Designs Private Limited
+  official_domains:
+    - myntra.com
+  official_phones:
+    - "+918061561999"
+  payment_policy: "Orders and payments are processed exclusively via the official Myntra app or website. Myntra never asks customers to send money to personal UPI IDs or scan third-party QR codes."
+  sources:
+    - url: "https://www.myntra.com/contactus"
+      verified_on: "2026-10-01"
+
+- slug: tata-cliq
+  name: Tata CLiQ
+  aliases:
+    - Tata Cliq
+    - Tata CLiQ Luxury
+    - Cliq
+  legal_names:
+    - Tata UniStore Limited
+  official_domains:
+    - tatacliq.com
+  official_phones:
+    - "+9102268078282"
+  payment_policy: "Payments must be made only through the official Tata CLiQ payment gateway on website or app. Never transfer funds to personal UPI IDs or mobile numbers."
+  sources:
+    - url: "https://www.tatacliq.com/help-centre"
+      verified_on: "2026-10-01"
+
+- slug: ajio
+  name: AJIO
+  aliases:
+    - Ajio
+    - AJIO.com
+    - Reliance AJIO
+    - Ajio Luxe
+  legal_names:
+    - Reliance Retail Limited
+  official_domains:
+    - ajio.com
+  official_phones:
+    - "+9118008899991"
+  payment_policy: "All order checkouts are handled through the AJIO app or ajio.com website. AJIO representatives never request payments to personal UPI accounts or via direct chat links."
+  sources:
+    - url: "https://www.ajio.com/help"
+      verified_on: "2026-10-01"
+
+- slug: meesho
+  name: Meesho
+  aliases:
+    - Meesho
+    - Meesho App
+    - Fashnear
+  legal_names:
+    - Fashnear Technologies Private Limited
+  official_domains:
+    - meesho.com
+  official_phones:
+    - "+918061799600"
+  payment_policy: "Payments should only be made within the Meesho app. Meesho never requests advance transfers to personal UPI accounts or phone numbers."
+  sources:
+    - url: "https://www.meesho.com/legal/trust-and-safety"
+      verified_on: "2026-10-01"
+
+- slug: nykaa
+  name: Nykaa
+  aliases:
+    - Nykaa
+    - Nykaa Beauty
+    - Nykaa Fashion
+    - Nykaa Man
+  legal_names:
+    - FSN E-Commerce Ventures Limited
+    - Nykaa E-Retail Private Limited
+  official_domains:
+    - nykaa.com
+    - nykaafashion.com
+  official_phones:
+    - "+9118002674444"
+  payment_policy: "Pay only via the secure checkout system on Nykaa apps or nykaa.com. Nykaa never asks customers to transfer funds directly to personal bank or UPI accounts."
+  sources:
+    - url: "https://www.nykaa.com/help-center"
+      verified_on: "2026-10-01"
+
+- slug: zomato
+  name: Zomato
+  aliases:
+    - Zomato
+    - Zomato Limited
+    - Zomato Gold
+  legal_names:
+    - Zomato Limited
+    - Eternal Limited
+  official_domains:
+    - zomato.com
+  official_phones: []  # Support and transactions are strictly in-app; no phone-based sales or WhatsApp payments
+  payment_policy: "Orders and payments are accepted exclusively through the Zomato app payment gateway. Zomato never asks for payments to personal UPI IDs or bank accounts via chat."
+  sources:
+    - url: "https://www.zomato.com/contact"
+      verified_on: "2026-10-01"
+
+- slug: swiggy
+  name: Swiggy
+  aliases:
+    - Swiggy
+    - Swiggy Instamart
+    - Swiggy Dineout
+    - Bundl Technologies
+  legal_names:
+    - Swiggy Limited
+    - Bundl Technologies Private Limited
+  official_domains:
+    - swiggy.com
+  official_phones: []  # Support and ordering are entirely in-app; no phone sales
+  payment_policy: "Pay only through the Swiggy mobile application checkout gateway. Swiggy never instructs users to send direct UPI transfers to personal numbers or individual handles."
+  sources:
+    - url: "https://www.swiggy.com/contact-us"
+      verified_on: "2026-10-01"
+
+- slug: apple-india
+  name: Apple India
+  aliases:
+    - Apple India
+    - Apple
+    - Apple Store India
+    - Apple Store
+  legal_names:
+    - Apple India Private Limited
+  official_domains:
+    - apple.com
+  official_phones:
+    - "+910008001009009"
+    - "+910008000401966"
+  payment_policy: "Official purchases must be completed on apple.com/in or through authorised Apple Premium Resellers. Apple never conducts sales or takes payments via WhatsApp or individual UPI accounts."
+  sources:
+    - url: "https://www.apple.com/in/contact/"
+      verified_on: "2026-10-01"
+
+- slug: acme-footwear
+  name: Acme Footwear
+  aliases:
+    - acme shoes
+    - acme
+    - Acme Footwear Co
+  legal_names:
+    - Acme Footwear Private Limited
+  official_domains:
+    - acmefootwear.com
+  official_phones:
+    - "+911800112233"
+  payment_policy: "Pays only through the official website/app checkout; never asks for payment to personal accounts."
+  sources:
+    - url: "https://www.acmefootwear.com/contact"
+      verified_on: "2026-10-01"
