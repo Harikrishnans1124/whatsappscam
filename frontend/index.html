@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrustShop AI - Check Before You Pay</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="header">
+    <div class="container header-container">
+      <div class="logo">
+        <span class="logo-shield">🛡️</span>
+        <span class="logo-text">TrustShop<strong>AI</strong></span>
+      </div>
+      <div class="tagline">Check before you pay</div>
+    </div>
+  </header>
+
+  <main class="container main-content">
+    <div class="intro-card">
+      <h1>Is this seller legitimate?</h1>
+      <p>Paste the phone number, WhatsApp chat, link, or payment details a seller gave you. We check whether it really belongs to the brand they claim to be.</p>
+    </div>
+
+    <!-- Check Form -->
+    <form id="checkForm" class="card form-card">
+      <div class="form-group">
+        <label for="claimedBrand">Brand they claim to be (optional)</label>
+        <input type="text" id="claimedBrand" placeholder="e.g. Flipkart, Amazon India, Myntra, Tata CLiQ">
+        <small class="help-text">Leave blank to let us auto-detect it from the chat or link.</small>
+      </div>
+
+      <div class="form-group">
+        <label for="phoneNumber">Phone / WhatsApp Number</label>
+        <input type="text" id="phoneNumber" placeholder="e.g. +91 98765 43210 or 09876543210">
+      </div>
+
+      <div class="form-group">
+        <label for="messageText">Chat message text</label>
+        <textarea id="messageText" rows="3" placeholder="Paste the message or chat snippet here..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="url">Website link (URL)</label>
+        <input type="text" id="url" placeholder="e.g. https://flipkart.com/deal or discount-outlet.shop">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group half">
+          <label for="upiId">UPI ID / VPA</label>
+          <input type="text" id="upiId" placeholder="e.g. merchant@okhdfcbank or 9876543210@ybl">
+        </div>
+        <div class="form-group half">
+          <label for="displayName">Payee name shown in UPI app</label>
+          <input type="text" id="displayName" placeholder="e.g. Rakesh K or Flipkart Internet">
+          <small class="help-text">The name your UPI app shows before you pay.</small>
+        </div>
+      </div>
+
+      <button type="submit" id="submitBtn" class="btn btn-primary">
+        <span>Verify Seller Details</span>
+      </button>
+      <div id="errorAlert" class="alert alert-error hidden"></div>
+    </form>
+
+    <!-- Result Card -->
+    <div id="resultCard" class="card result-card hidden">
+      <div class="result-header">
+        <div id="verdictBadge" class="verdict-badge">VERDICT</div>
+        <div id="riskScoreWrap" class="risk-score">Risk: <strong id="riskScoreValue">--</strong></div>
+      </div>
+
+      <h2 id="resultSummary" class="result-summary">Summary text</h2>
+
+      <div id="brandMatchInfo" class="brand-match-box">
+        <strong>Brand Status:</strong> <span id="brandStatusText">Checking...</span>
+      </div>
+
+      <div class="section-title">Why this verdict:</div>
+      <ul id="reasonsList" class="reasons-list"></ul>
+
+      <div class="section-title">What you should do:</div>
+      <ul id="adviceList" class="advice-list"></ul>
+
+      <div class="disclaimer-text">
+        <small>⚠️ Automated estimate, not legal proof. Always verify through the brand's official website or app before transferring money.</small>
+      </div>
+
+      <button type="button" id="resetBtn" class="btn btn-secondary">Check Another Seller</button>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-content">
+      <p>TrustShop AI • Built for shopper safety. If you have been scammed in India, call <strong>1930</strong> or visit <a href="https://cybercrime.gov.in" target="_blank" rel="noopener">cybercrime.gov.in</a>.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

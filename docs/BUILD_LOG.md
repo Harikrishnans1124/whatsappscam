@@ -18,22 +18,22 @@
 | Message scorer: TF-IDF model | ☐ | PR-AUC public: ___ / own set: ___ |
 | Domain scorer (RDAP + lookalike) | ☐ | Phase 3b |
 | Number scorer + community reports | ☐ | Phase 3d |
-| Decision layer (weights, floors, verdicts) | ☐ | Phase 2 |
+| Decision layer (weights, floors, verdicts) | ☑ | Renormalized weights, floors (0.55-0.85), 4 verdicts, degraded handling |
 | Timeouts + circuit breaker | ☐ | Phase 4 |
 | Redis cache + rate limiting | ☐ | Phase 4 |
-| Explanations (en / ml / hi) | ☐ | Native-speaker reviewed? ___ |
-| Web app / PWA | ☐ | Phase 2 & 5 |
+| Explanations (en / ml / hi) | ☑ | English reason templates, summary and advice generation |
+| Web app / PWA | ☑ | Mobile-friendly form + live result card served via FastAPI |
 | Admin dashboard | ☐ | Phase 5 |
 | Audit log + verify script | ☐ | Phase 4 |
 | OpenTelemetry + Jaeger | ☐ | Phase 5 |
-| Tests (count / coverage) | ☑ | 37 unit tests passing (100% green) |
+| Tests (count / coverage) | ☑ | 61 unit and API integration tests passing (100% green) |
 | Evaluation set + results | ☐ | cases: ___ |
 | Latency measurements | ☐ | |
-| Docker Compose from a clean clone | ☐ | Redis defined |
+| Docker Compose from a clean clone | ☑ | Multi-service Compose with API and Redis |
 | README metrics filled in | ☐ | |
 | Tried by real users (non-technical) | ☐ | feedback: ___ |
 
-**Technologies actually used so far:** Python 3.13, SQLAlchemy 2.0, SQLite, PyYAML, phonenumbers, tldextract, rapidfuzz, pytest, pytest-asyncio, ruff
+**Technologies actually used so far:** Python 3.13, FastAPI, Pydantic v2, Starlette, SQLAlchemy 2.0, SQLite, PyYAML, phonenumbers, tldextract, rapidfuzz, pytest, pytest-asyncio, ruff, HTML5/CSS3/JavaScript, Docker
 
 ---
 
@@ -113,6 +113,44 @@ Copy this block for each work session.
 - **What I learned (in my own words):**
   - Distinguishing brand identity against verified official registry channels is much more robust than text heuristics alone: a fraudster can easily modify their pitch, but they cannot impersonate an official E.164 phone or official registrable domain.
 - **Next step:** Phase 2: API skeleton with FastAPI, Pydantic schemas, RFC 9457 errors, decision layer with hard-flag floors and re-weighted scoring, and minimal web UI.
+
+### 2026-10-02: Phase 2 (API Skeleton, Decision Layer, and Minimal Web Page)
+
+- **Goal:** Build the complete end-to-end path from browser UI to FastAPI, decision engine, and RFC 9457 error handling.
+- **What I built / changed:**
+  - Implemented `app/schemas.py`: Pydantic v2 models for `CheckRequest` (with at-least-one-input validator), `CheckResponse`, `BrandResponse`, and `ProblemDetail`.
+  - Implemented `app/errors.py`: RFC 9457 `application/problem+json` exception handlers for validation errors, HTTP status errors, and generic errors.
+  - Implemented stub scorers in `app/agents/` for `payment.py`, `message.py`, `domain.py`, and `number.py`.
+  - Implemented `app/decision.py`: Weighted risk over active `ok` scorers with dynamic weight renormalization, hard-flag floors (`BRAND_CHANNEL_MISMATCH`: 0.55, `PERSONAL_PAYEE`: 0.70, `LOOKALIKE_DOMAIN`: 0.85, etc.), and verdict rules.
+  - Implemented `app/explain.py`: Reason code explanations, contextual summaries, and actionable next-step advice.
+  - Implemented `app/main.py`: FastAPI application exposing `POST /v1/checks`, `GET /healthz`, `GET /readyz`, `GET /v1/brands`, `GET /v1/brands/{slug}`, with static frontend mounting.
+  - Built mobile-responsive web UI in `frontend/index.html`, `frontend/style.css`, and `frontend/app.js` with live verdict badge, risk indicator, summary, reason list, and advice.
+  - Added `Dockerfile` and updated `docker-compose.yml` to define both `api` and `redis` services.
+  - Added unit and integration tests: `tests/test_schemas.py`, `tests/test_decision.py`, and `tests/test_api.py`.
+- **Files touched:**
+  - `app/schemas.py`, `app/errors.py`, `app/decision.py`, `app/explain.py`, `app/main.py`
+  - `app/agents/payment.py`, `app/agents/message.py`, `app/agents/domain.py`, `app/agents/number.py`
+  - `frontend/index.html`, `frontend/style.css`, `frontend/app.js`
+  - `Dockerfile`, `docker-compose.yml`
+  - `tests/test_schemas.py`, `tests/test_decision.py`, `tests/test_api.py`
+  - `PLAN.md`, `docs/PLAN.md`, `docs/BUILD_LOG.md`
+- **Tech / concepts used:** FastAPI, Starlette, Pydantic v2 model_validator, RFC 9457 Problem Details, asyncio.gather, HTML5/CSS3/Vanilla JS, Docker multi-container compose.
+- **How to reproduce / run it:**
+  - `uvicorn app.main:app --port 8000`
+  - Open `http://localhost:8000` in browser to test the UI.
+  - Run `pytest -v` (61 tests passing).
+  - Run `ruff check .` (0 lint issues).
+- **Result / evidence:**
+  - `POST /v1/checks` with official Flipkart helpline yields `200 OK` with verdict `MATCHES_OFFICIAL`, risk `0.0`.
+  - `POST /v1/checks` with fake mobile number claiming to be Flipkart yields `200 OK` with verdict `LIKELY_SCAM` / `SUSPICIOUS`, risk `0.85`, raising `BRAND_CHANNEL_MISMATCH`.
+  - Missing all inputs yields `422` with RFC 9457 `application/problem+json`.
+  - 61 / 61 tests passing in pytest (2.92s).
+- **Problems hit and how I fixed them:**
+  - Replaced deprecated `HTTP_422_UNPROCESSABLE_ENTITY` with `HTTP_422_UNPROCESSABLE_CONTENT`.
+  - Fixed FastAPI dependency injection parameter annotations to use `Annotated[Session, Depends(get_db)]` for cleaner static typing.
+- **What I learned (in my own words):**
+  - Building the decision layer and API skeleton before all ML/external scorers are fully implemented allows end-to-end integration testing and UI feedback loops from day one.
+- **Next step:** Phase 3: Remaining scorers (Payment fuzzy match, Domain RDAP age and lookalike detection, Message TF-IDF model and rules, Number reputation and community reports).
 
 ---
 

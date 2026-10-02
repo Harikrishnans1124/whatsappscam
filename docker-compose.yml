@@ -1,4 +1,20 @@
 services:
+  api:
+    build: .
+    container_name: trustshop-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///data/trustshop.db
+      - REDIS_URL=redis://redis:6379/0
+      - HMAC_SECRET=dev-secret-key-change-me
+      - ADMIN_API_KEY=dev-admin-key-change-me
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - redis
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: trustshop-redis

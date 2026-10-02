@@ -85,18 +85,18 @@ A shopper gets a deal from a "seller" claiming to be a famous brand. They enter 
 
 **Learn first:** FastAPI tutorial (first sections), Pydantic validators (TECH_STACK §1–2).
 
-- [ ] `schemas.py`: request/response models per `docs/API.md` (at-least-one-input validator)
-- [ ] `main.py`: `POST /v1/checks`, `/healthz`, `/readyz`
-- [ ] `config.py`: load `settings.yaml` and env vars
-- [ ] Stub the other four scorers (`not_applicable` or fixed values)
-- [ ] `decision.py`:
-  - [ ] weighted risk over `ok` scorers (renormalize weights)
-  - [ ] hard-flag floors
-  - [ ] verdict rules (`MATCHES_OFFICIAL` only with a registry match, no mismatch, no degradation, fresh entry)
-- [ ] `errors.py`: RFC 9457 handlers
-- [ ] `frontend/index.html` + `app.js`: form (number, paste chat, link, UPI ID, payee name) and a result card (verdict in words + icon + colour, reasons, advice)
-- [ ] Dockerfile; add `api` to `docker-compose.yml`
-- [ ] Commit: `feat: api, decision layer, minimal web page`
+- [x] `schemas.py`: request/response models per `docs/API.md` (at-least-one-input validator)
+- [x] `main.py`: `POST /v1/checks`, `/healthz`, `/readyz`
+- [x] `config.py`: load `settings.yaml` and env vars
+- [x] Stub the other four scorers (`not_applicable` or fixed values)
+- [x] `decision.py`:
+  - [x] weighted risk over `ok` scorers (renormalize weights)
+  - [x] hard-flag floors
+  - [x] verdict rules (`MATCHES_OFFICIAL` only with a registry match, no mismatch, no degradation, fresh entry)
+- [x] `errors.py`: RFC 9457 handlers
+- [x] `frontend/index.html` + `app.js`: form (number, paste chat, link, UPI ID, payee name) and a result card (verdict in words + icon + colour, reasons, advice)
+- [x] Dockerfile; add `api` to `docker-compose.yml`
+- [x] Commit: `feat: api, decision layer, minimal web page`
 
 **Done when:** you can type a wrong number for a registry brand in the browser and see a `SUSPICIOUS` result with a reason, and the official number gives `MATCHES_OFFICIAL`.
 
