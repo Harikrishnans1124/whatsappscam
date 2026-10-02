@@ -164,13 +164,30 @@ def check_lookalike(
     return False, ""
 
 
+from app.cache import get_cached_rdap, set_cached_rdap
+from app.safe_fetch import is_safe_outbound_url
+
+
 async def fetch_rdap_registration_date(
     domain: str,
     client: httpx.AsyncClient | None = None,
     timeout_s: float = 2.5,
 ) -> dt.datetime | None:
-    """Fetch domain registration date via RDAP protocol using an async HTTP request."""
+    """Fetch domain registration date via RDAP protocol with Redis caching and SSRF safety."""
+    # 1. Check cache first
+    cached = get_cached_rdap(domain)
+    if cached and cached.get("registration_date"):
+        try:
+            return dt.datetime.fromisoformat(cached["registration_date"])
+        except ValueError:
+            pass
+
+    # 2. SSRF validation
     url = f"https://rdap.org/domain/{domain}"
+    is_safe, _ = is_safe_outbound_url(url)
+    if not is_safe:
+        return None
+
     should_close = False
     if client is None:
         client = httpx.AsyncClient(timeout=timeout_s, follow_redirects=True)
@@ -188,8 +205,9 @@ async def fetch_rdap_registration_date(
             if action in ("registration", "registered", "created"):
                 date_str = ev.get("eventDate")
                 if date_str:
-                    # Clean ISO format
                     clean_date = date_str.replace("Z", "+00:00")
+                    # Store in cache
+                    set_cached_rdap(domain, {"registration_date": clean_date})
                     return dt.datetime.fromisoformat(clean_date)
         return None
     except (httpx.HTTPError, ValueError):

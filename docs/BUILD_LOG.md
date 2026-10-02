@@ -175,6 +175,31 @@ Copy this block for each work session.
   - `ruff check .` passing with 0 lint issues.
 - **Next step:** Phase 4: Resilience, caching, and safety (timeouts, circuit breaker, Redis cache, rate limiting, and hash-chained audit log).
 
+### 2026-10-02: Phase 4 (Resilience, Caching, and Safety)
+
+- **Goal:** Production-grade hardening with circuit breakers, timeouts, Redis caching, IP rate limiting, SSRF prevention, and a tamper-evident audit log.
+- **What I built / changed:**
+  - Implemented `app/breaker.py`: Per-scorer execution timeout guards (150 ms local CPU/DB, 2500 ms domain RDAP) and custom 3-state `CircuitBreaker` (`CLOSED`, `OPEN`, `HALF_OPEN`) with fast rejection and coroutine cleanup.
+  - Implemented `app/safe_fetch.py`: Strict outbound SSRF validator rejecting loopback, RFC 1918 private subnets, cloud metadata (`169.254.169.254`), and non-allowlisted domains.
+  - Implemented `app/cache.py`: Redis-backed RDAP caching (24 h TTL), fixed-window IP rate limiting (HTTP 429), and seamless in-memory fail-open fallback when Redis is offline.
+  - Implemented `app/audit.py` & `scripts/verify_audit.py`: Cryptographic hash chain (`entry_hash = SHA256(prev_hash || canonical_json(entry))`) storing only HMAC-SHA256 identifiers; zero raw chat or phone numbers stored; standalone integrity verification script.
+  - Updated `app/main.py`: Connected IP rate limiting, guarded parallel scorers with `asyncio.gather`, degraded mode detection, and audit logging for `POST /v1/checks` and `POST /v1/reports`.
+  - Updated `app/decision.py`: Guaranteed that under degraded mode (`degraded: true`), the verdict can never output `MATCHES_OFFICIAL`, capping it at `UNVERIFIED`.
+  - Added test suites: `tests/test_breaker.py`, `tests/test_safe_fetch.py`, `tests/test_cache.py`, `tests/test_audit.py`, and updated `tests/test_api.py`.
+- **Files touched:**
+  - `app/breaker.py`, `app/safe_fetch.py`, `app/cache.py`, `app/audit.py`, `scripts/verify_audit.py`
+  - `app/main.py`, `app/explain.py`, `app/agents/domain.py`, `app/agents/message.py`
+  - `tests/test_breaker.py`, `tests/test_safe_fetch.py`, `tests/test_cache.py`, `tests/test_audit.py`, `tests/test_api.py`
+  - `PLAN.md`, `docs/PLAN.md`, `docs/PHASE_4_SUMMARY.md`, `docs/BUILD_LOG.md`
+- **Tech / concepts used:** Circuit Breaker pattern, asyncio timeouts, Redis with in-memory fallback, RFC 9457 rate limiting, SSRF IP parsing & validation, HMAC-SHA256 privacy hashing, SHA-256 cryptographic hash-chaining.
+- **Result / evidence:**
+  - 115 / 115 unit and integration tests passing in pytest (8.26s).
+  - Broken RDAP returns 200 OK, `degraded: true`, verdict capped at `UNVERIFIED`.
+  - Exceeding rate limit returns 429 Too Many Requests.
+  - Audit log tampering detected with exit code 1 identifying the tampered line.
+  - `ruff check .` passing with 0 lint issues.
+- **Next step:** Phase 5: Explanations, translations (i18n), reports, admin dashboard (Streamlit), and PWA.
+
 ---
 
 ## Decisions log

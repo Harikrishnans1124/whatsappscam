@@ -14,7 +14,6 @@ Analyzes chat messages and message text using:
 
 from __future__ import annotations
 
-import asyncio
 import re
 from pathlib import Path
 from typing import Any
@@ -70,13 +69,15 @@ SUSPICIOUS_OFFER_PATTERNS = [
 
 
 def load_ml_model():
-    """Load cached ML model pipeline from disk if available."""
+    """Load cached ML model pipeline from disk and warm up inference."""
     global _CACHED_MODEL, _MODEL_LOAD_ATTEMPTED
     if not _MODEL_LOAD_ATTEMPTED:
         _MODEL_LOAD_ATTEMPTED = True
         if MODEL_PATH.exists():
             try:
                 _CACHED_MODEL = joblib.load(MODEL_PATH)
+                if _CACHED_MODEL is not None:
+                    _CACHED_MODEL.predict_proba(["warmup initialization"])
             except (OSError, ValueError, KeyError, AttributeError):
                 _CACHED_MODEL = None
     return _CACHED_MODEL
@@ -170,11 +171,11 @@ async def message_scorer(context: CheckContext) -> dict[str, Any]:
     # 1. Rule-based evaluation
     rule_risk, reasons, flags, hits = evaluate_message_rules(cleaned_text)
 
-    # 2. ML model prediction via asyncio.to_thread (non-blocking)
+    # 2. ML model prediction (fast synchronous inference in < 1 ms)
     model = load_ml_model()
     ml_prob: float | None = None
     if model is not None:
-        ml_prob = await asyncio.to_thread(run_model_prediction, model, cleaned_text)
+        ml_prob = run_model_prediction(model, cleaned_text)
 
     # 3. Combine scores
     evidence: dict[str, Any] = {

@@ -29,6 +29,9 @@ REASON_TEMPLATES = {
     "INVALID_PHONE_NUMBER": "The phone number format is invalid according to international numbering standards.",
     "REPORTED_BY_USERS": "This contact has been reported by multiple independent users as suspicious.",
     "RDAP_LOOKUP_FAILED": "Domain registration records could not be retrieved from RDAP servers.",
+    "SCORER_UNAVAILABLE": "A verification service is temporarily unavailable due to upstream issues.",
+    "SCORER_TIMEOUT": "A verification service timed out before completing.",
+    "SCORER_FAILED": "An unexpected error occurred during verification.",
     "DEGRADED_MODE": "One or more external verification checks were unavailable. Proceed with caution.",
 }
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -17,9 +18,12 @@ from sqlalchemy.orm import Session
 
 from app.agents.brand_identity import brand_identity_scorer
 from app.agents.domain import domain_scorer
-from app.agents.message import message_scorer
+from app.agents.message import load_ml_model, message_scorer
 from app.agents.number import number_scorer
 from app.agents.payment import payment_scorer
+from app.audit import append_audit_entry, build_audit_identifiers
+from app.breaker import guarded_scorer
+from app.cache import check_rate_limit
 from app.decision import calculate_decision
 from app.errors import setup_exception_handlers
 from app.explain import generate_explanation
@@ -47,6 +51,7 @@ from scripts.seed_registry import seed_registry
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
+logger = logging.getLogger(__name__)
 
 
 def get_db():
@@ -67,6 +72,8 @@ async def lifespan(app: FastAPI):
             yaml_path = PROJECT_ROOT / "registry" / "brands.yaml"
             if yaml_path.exists():
                 seed_registry(yaml_path)
+    # Pre-load ML models at startup to avoid first-request timeout
+    load_ml_model()
     yield
 
 
@@ -145,10 +152,28 @@ async def get_brand(slug: str, db: Annotated[Session, Depends(get_db)]):
 
 
 @app.post("/v1/checks", response_model=CheckResponse, tags=["Checks"])
-async def create_check(payload: CheckRequest, db: Annotated[Session, Depends(get_db)]):
+async def create_check(
+    payload: CheckRequest,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+):
     """Check a seller's phone number, chat text, link, and payment details."""
     start_time = time.perf_counter()
     check_id = f"c_{uuid.uuid4().hex[:8]}"
+
+    # Rate limiting check
+    forwarded = request.headers.get("X-Forwarded-For")
+    client_ip = (
+        forwarded.split(",")[0].strip()
+        if forwarded
+        else (request.client.host if request.client else "127.0.0.1")
+    )
+    is_allowed, _, _ = check_rate_limit(client_ip)
+    if not is_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please wait a minute.",
+        )
 
     # 1. Fetch registry brands for brand matching
     db_brands = get_all_brands(db)
@@ -166,13 +191,13 @@ async def create_check(payload: CheckRequest, db: Annotated[Session, Depends(get
         registry_brands=registry_list,
     )
 
-    # 3. Execute all 5 scorers in parallel
+    # 3. Execute all 5 scorers in parallel guarded by circuit breaker & timeouts
     brand_res, pay_res, msg_res, dom_res, num_res = await asyncio.gather(
-        brand_identity_scorer(ctx),
-        payment_scorer(ctx),
-        message_scorer(ctx),
-        domain_scorer(ctx),
-        number_scorer(ctx, db_session=db),
+        guarded_scorer("brand_identity", brand_identity_scorer(ctx)),
+        guarded_scorer("payment", payment_scorer(ctx)),
+        guarded_scorer("message", message_scorer(ctx)),
+        guarded_scorer("domain", domain_scorer(ctx)),
+        guarded_scorer("number", number_scorer(ctx, db_session=db)),
     )
 
     raw_scores: dict[str, dict[str, Any]] = {
@@ -217,6 +242,25 @@ async def create_check(payload: CheckRequest, db: Annotated[Session, Depends(get
     }
 
     latency = round((time.perf_counter() - start_time) * 1000, 2)
+
+    # 8. Record in hash-chained audit log (privacy-preserving HMAC hashes only)
+    hashed_ids = build_audit_identifiers(
+        phone_e164=ctx.phone.get("e164"),
+        domains=[u.get("registrable_domain") for u in ctx.urls if u.get("registrable_domain")],
+        upi_id=ctx.payment.get("upi_id"),
+    )
+    try:
+        append_audit_entry(
+            check_id=check_id,
+            verdict=decision.verdict,
+            risk_score=decision.risk_score,
+            reason_codes=decision.reason_codes,
+            flags=decision.flags,
+            hashed_identifiers=hashed_ids,
+        )
+    except (OSError, ValueError) as exc:
+        # Audit failure must not fail the user's check request
+        logger.warning("Failed to record audit log entry: %s", exc)
 
     return CheckResponse(
         check_id=check_id,
@@ -264,6 +308,13 @@ async def create_report(
         if forwarded
         else (request.client.host if request.client else "127.0.0.1")
     )
+
+    is_allowed, _, _ = check_rate_limit(reporter_ip)
+    if not is_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please wait a minute.",
+        )
 
     record_report(
         session=db,

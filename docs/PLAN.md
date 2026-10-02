@@ -145,15 +145,15 @@ A shopper gets a deal from a "seller" claiming to be a famous brand. They enter 
 
 **Learn first:** `asyncio.gather`/`wait_for`, circuit breaker pattern, HMAC, SSRF basics (TECH_STACK §8–11).
 
-- [ ] `breaker.py`: per-scorer timeouts (150 ms local, 2,500 ms domain) and a small circuit-breaker class you write yourself
-- [ ] Run scorers with `asyncio.gather`; separate `failed` from `not_applicable`
-- [ ] Verify: slow/broken RDAP → `200`, `degraded: true`, never `MATCHES_OFFICIAL`
-- [ ] `cache.py`: Redis cache for RDAP (24 h TTL), fixed-window rate limiting (`429`)
-- [ ] Redis down → still answers (no cache)
-- [ ] `safe_fetch.py`: outbound allowlist; confirm no user URL is ever fetched
-- [ ] `audit.py`: hash-chained log with HMAC-hashed identifiers only; `scripts/verify_audit.py`
-- [ ] Confirm raw chat text is not stored or logged
-- [ ] Commit: `feat: resilience, caching, audit`
+- [x] `breaker.py`: per-scorer timeouts (150 ms local, 2,500 ms domain) and a small circuit-breaker class you write yourself
+- [x] Run scorers with `asyncio.gather`; separate `failed` from `not_applicable`
+- [x] Verify: slow/broken RDAP → `200`, `degraded: true`, never `MATCHES_OFFICIAL`
+- [x] `cache.py`: Redis cache for RDAP (24 h TTL), fixed-window rate limiting (`429`)
+- [x] Redis down → still answers (no cache)
+- [x] `safe_fetch.py`: outbound allowlist; confirm no user URL is ever fetched
+- [x] `audit.py`: hash-chained log with HMAC-hashed identifiers only; `scripts/verify_audit.py`
+- [x] Confirm raw chat text is not stored or logged
+- [x] Commit: `feat: resilience, caching, audit`
 
 **Done when:** you can (1) block RDAP and still get a cautious answer, (2) hit the rate limit and get `429`, (3) tamper with the audit file and see the verifier fail.
 

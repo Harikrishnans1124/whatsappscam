@@ -2,7 +2,9 @@
 
 from pathlib import Path
 
+import httpx
 import pytest
+import respx
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -114,3 +116,25 @@ class TestAPIEndpoints:
         assert res.status_code == 200
         assert "TrustShop" in res.text
         assert "checkForm" in res.text
+
+    @respx.mock
+    def test_check_broken_rdap_degraded_never_matches_official(self, client):
+        # Mock RDAP failure
+        broken_domain = "unreachable-domain-xyz.com"
+        respx.get(f"https://rdap.org/domain/{broken_domain}").mock(
+            return_value=httpx.Response(500)
+        )
+
+        payload = {
+            "urls": [f"https://{broken_domain}/page"],
+        }
+        res = client.post("/v1/checks", json=payload)
+        assert res.status_code == 200
+        data = res.json()
+
+        # Critical safety rule: When RDAP fails, system degrades gracefully to UNVERIFIED, never MATCHES_OFFICIAL
+        assert data["degraded"] is True
+        assert data["verdict"] != "MATCHES_OFFICIAL"
+        assert data["verdict"] == "UNVERIFIED"
+        assert "DEGRADED_MODE" in data["reason_codes"]
+
