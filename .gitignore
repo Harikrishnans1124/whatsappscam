@@ -5,6 +5,7 @@ data/*.db
 data/*.sqlite
 data/*.jsonl
 models/*.joblib
+*.joblib
 __pycache__/
 *.py[cod]
 *$py.class

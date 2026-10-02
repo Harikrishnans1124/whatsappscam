@@ -120,3 +120,21 @@ class ProblemDetail(BaseModel):
     status: int
     detail: str
     instance: str | None = None
+
+
+class ReportCreateRequest(BaseModel):
+    identifier: str = Field(..., description="Phone number, domain/URL, or UPI ID being reported")
+    identifier_type: Literal["phone", "domain", "upi"] = Field(
+        default="phone", description="Type of identifier"
+    )
+    category: str = Field(default="scam", description="Scam category, e.g. impersonation, advance_fee")
+    notes: str | None = Field(default=None, max_length=500, description="Optional brief description")
+
+
+class ReportResponse(BaseModel):
+    status: str = "received"
+    identifier_type: str
+    distinct_reporters: int
+    total_reports: int
+    message: str = "Report successfully registered."
+

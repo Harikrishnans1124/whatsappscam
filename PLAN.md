@@ -109,31 +109,31 @@ A shopper gets a deal from a "seller" claiming to be a famous brand. They enter 
 **Learn first:** `rapidfuzz`, RDAP/`httpx`, scikit-learn text classification (TECH_STACK §5–7).
 
 ### 3a. Payment scorer
-- [ ] Payee-name fuzzy match against the brand's legal names
-- [ ] `PERSONAL_PAYEE` flag for known brand + non-matching personal-looking name
-- [ ] Weak signal for phone-number-style UPI IDs (never decisive)
-- [ ] Tests, including company-name variations (`Pvt Ltd` vs `Private Limited`)
+- [x] Payee-name fuzzy match against the brand's legal names
+- [x] `PERSONAL_PAYEE` flag for known brand + non-matching personal-looking name
+- [x] Weak signal for phone-number-style UPI IDs (never decisive)
+- [x] Tests, including company-name variations (`Pvt Ltd` vs `Private Limited`)
 
 ### 3b. Domain scorer
-- [ ] Lookalike detection: typo distance, brand-stuffing, hyphen/digit tricks, Punycode/mixed-script check
-- [ ] RDAP domain-age lookup with `httpx` (timeout, error handling; `None` → `failed`)
-- [ ] URL shortener list
-- [ ] Mock RDAP in tests (`respx`)
-- [ ] Unit tests: exact official domain, typo, `brand-outlet.shop`, young domain
+- [x] Lookalike detection: typo distance, brand-stuffing, hyphen/digit tricks, Punycode/mixed-script check
+- [x] RDAP domain-age lookup with `httpx` (timeout, error handling; `None` → `failed`)
+- [x] URL shortener list
+- [x] Mock RDAP in tests (`respx`)
+- [x] Unit tests: exact official domain, typo, `brand-outlet.shop`, young domain
 
 ### 3c. Message scorer
-- [ ] Rule set (urgency, advance payment, move to personal chat, OTP, remote-access apps) with tests for hits and non-hits
-- [ ] Download UCI SMS Spam data; write about 100–200 of your own labeled examples
-- [ ] Train TF-IDF + logistic regression; evaluate on public **and** your own data; save with `joblib`
-- [ ] Load the model once at startup; predict via `asyncio.to_thread`
-- [ ] Combine: rules main weight, model supporting weight
+- [x] Rule set (urgency, advance payment, move to personal chat, OTP, remote-access apps) with tests for hits and non-hits
+- [x] Download UCI SMS Spam data; write about 100–200 of your own labeled examples
+- [x] Train TF-IDF + logistic regression; evaluate on public **and** your own data; save with `joblib`
+- [x] Load the model once at startup; predict via `asyncio.to_thread`
+- [x] Combine: rules main weight, model supporting weight
 
 ### 3d. Number scorer
-- [ ] Validity/type checks (`phonenumbers`)
-- [ ] `reports` table with HMAC-hashed identifiers; count distinct reporters
-- [ ] `POST /v1/reports` (dedupe, minimum distinct reporters before it affects risk)
+- [x] Validity/type checks (`phonenumbers`)
+- [x] `reports` table with HMAC-hashed identifiers; count distinct reporters
+- [x] `POST /v1/reports` (dedupe, minimum distinct reporters before it affects risk)
 
-- [ ] Commit: `feat: payment, domain, message, number scorers`
+- [x] Commit: `feat: payment, domain, message, number scorers`
 
 **Done when:** three hand-made examples (genuine, suspicious, obvious scam) get sensible verdicts and reason codes.
 

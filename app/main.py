@@ -9,7 +9,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, HTTPException, status
+import tldextract
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -22,12 +23,14 @@ from app.agents.payment import payment_scorer
 from app.decision import calculate_decision
 from app.errors import setup_exception_handlers
 from app.explain import generate_explanation
-from app.extraction import extract_check_context
+from app.extraction import extract_check_context, normalize_phone
 from app.registry import (
     get_all_brands,
     get_brand_by_slug,
+    get_report_stats,
     get_session_factory,
     init_db,
+    record_report,
 )
 from app.schemas import (
     BrandMatchResult,
@@ -36,6 +39,8 @@ from app.schemas import (
     ChannelMatch,
     CheckRequest,
     CheckResponse,
+    ReportCreateRequest,
+    ReportResponse,
     ScorerResultItem,
 )
 from scripts.seed_registry import seed_registry
@@ -167,7 +172,7 @@ async def create_check(payload: CheckRequest, db: Annotated[Session, Depends(get
         payment_scorer(ctx),
         message_scorer(ctx),
         domain_scorer(ctx),
-        number_scorer(ctx),
+        number_scorer(ctx, db_session=db),
     )
 
     raw_scores: dict[str, dict[str, Any]] = {
@@ -225,6 +230,57 @@ async def create_check(payload: CheckRequest, db: Annotated[Session, Depends(get
         advice=explanation["advice"],
         degraded=decision.degraded,
         latency_ms=latency,
+    )
+
+
+@app.post(
+    "/v1/reports",
+    response_model=ReportResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Reports"],
+)
+async def create_report(
+    payload: ReportCreateRequest,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Submit a community report against a suspicious phone number, website link, or UPI ID."""
+    norm_id = payload.identifier.strip()
+    if payload.identifier_type == "phone":
+        p_res = normalize_phone(norm_id)
+        if p_res.get("valid") and p_res.get("e164"):
+            norm_id = p_res["e164"]
+    elif payload.identifier_type == "domain":
+        ext = tldextract.extract(norm_id)
+        if ext.domain and ext.suffix:
+            norm_id = f"{ext.domain}.{ext.suffix}".lower()
+    elif payload.identifier_type == "upi":
+        norm_id = norm_id.lower()
+
+    # Determine reporter identifier (client IP or forwarded IP)
+    forwarded = request.headers.get("X-Forwarded-For")
+    reporter_ip = (
+        forwarded.split(",")[0].strip()
+        if forwarded
+        else (request.client.host if request.client else "127.0.0.1")
+    )
+
+    record_report(
+        session=db,
+        identifier=norm_id,
+        identifier_type=payload.identifier_type,
+        reporter_id=reporter_ip,
+        category=payload.category,
+        notes=payload.notes,
+    )
+
+    stats = get_report_stats(db, norm_id)
+    return ReportResponse(
+        status="received",
+        identifier_type=payload.identifier_type,
+        distinct_reporters=stats["distinct_reporters"],
+        total_reports=stats["total_reports"],
+        message=f"Report registered. This identifier has now been reported by {stats['distinct_reporters']} independent user(s).",
     )
 
 

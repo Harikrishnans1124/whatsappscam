@@ -15,6 +15,8 @@ REASON_TEMPLATES = {
     "PERSONAL_PAYEE": "The payment payee appears to be an individual's personal account rather than the official company.",
     "PAYEE_NAME_MISMATCH": "The payee name does not match the company's registered legal entity.",
     "PAYEE_NAME_MATCH": "The payment payee matches the brand's verified legal company name.",
+    "PHONE_STYLE_UPI": "The UPI ID uses a personal mobile number format rather than an official merchant ID.",
+    "OFFICIAL_DOMAIN_MATCH": "The website domain matches the brand's official verified domain.",
     "LOOKALIKE_DOMAIN": "The website name closely imitates an official brand domain but is registered under an unauthorized name.",
     "NEW_DOMAIN": "The website domain was registered very recently.",
     "URL_SHORTENER": "A URL shortener was used to conceal the final destination link.",
@@ -22,6 +24,11 @@ REASON_TEMPLATES = {
     "REMOTE_ACCESS_REQUEST": "The message asks you to install remote-access software (e.g. AnyDesk, TeamViewer).",
     "URGENCY_PRESSURE": "The seller uses high-pressure urgency tactics ('today only', 'last items').",
     "ADVANCE_PAYMENT_REQUEST": "The seller demands advance payment outside official checkout channels.",
+    "SUSPICIOUS_OFFER": "The message advertises unrealistic discounts or unverified lottery/prize claims.",
+    "OFF_PLATFORM_MOVE": "The seller requests moving conversation to personal numbers or unmonitored channels.",
+    "INVALID_PHONE_NUMBER": "The phone number format is invalid according to international numbering standards.",
+    "REPORTED_BY_USERS": "This contact has been reported by multiple independent users as suspicious.",
+    "RDAP_LOOKUP_FAILED": "Domain registration records could not be retrieved from RDAP servers.",
     "DEGRADED_MODE": "One or more external verification checks were unavailable. Proceed with caution.",
 }
 

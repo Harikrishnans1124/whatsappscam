@@ -152,6 +152,29 @@ Copy this block for each work session.
   - Building the decision layer and API skeleton before all ML/external scorers are fully implemented allows end-to-end integration testing and UI feedback loops from day one.
 - **Next step:** Phase 3: Remaining scorers (Payment fuzzy match, Domain RDAP age and lookalike detection, Message TF-IDF model and rules, Number reputation and community reports).
 
+### 2026-10-02: Phase 3 (Remaining Scorers: Payment, Domain, Message, Number & Reports)
+
+- **Goal:** Replace all stub scorers with production-grade detection logic (fuzzy entity matching, RDAP domain age & lookalike detection, TF-IDF + rules message classifier, phone validity & privacy-preserving community reports).
+- **What I built / changed:**
+  - Implemented `app/agents/payment.py` (Phase 3a): Fuzzy legal entity matching using `rapidfuzz.fuzz.token_set_ratio` with corporate abbreviation normalization (`Pvt Ltd` ↔ `Private Limited`), `PERSONAL_PAYEE` hard floor detection (risk 0.70), and phone-style UPI handle identification.
+  - Implemented `app/agents/domain.py` (Phase 3b): Damerau-Levenshtein typo lookalike detection, brand-stuffing keyword analysis, digit/hyphen tricks, Punycode/mixed-script homoglyph checks (`LOOKALIKE_DOMAIN` hard floor 0.85), URL shortener detection, and async RDAP domain age resolution via `httpx`.
+  - Implemented `scripts/train_message_model.py` and `app/agents/message.py` (Phase 3c): Curated training dataset of WhatsApp scam vs legitimate shopping queries, trained TF-IDF + Logistic Regression pipeline (`data/models/message_classifier.joblib`), integrated async thread execution via `asyncio.to_thread`, and rule engine for `OTP_REQUEST` (0.85 floor), `REMOTE_ACCESS_REQUEST` (0.85 floor), urgency pressure, advance payments, and suspicious offers.
+  - Implemented `app/agents/number.py` and `POST /v1/reports` (Phase 3d): Phone number format & type validation (`phonenumbers`), `reports` table in SQLite with HMAC-SHA256 hashed identifiers for privacy-preserving crowd reporting, reporter deduplication, and risk scaling.
+  - Added unit test suites: `tests/test_payment.py`, `tests/test_domain.py`, `tests/test_message.py`, `tests/test_number.py`, and `tests/test_reports.py`.
+  - Added `scripts/test_three_scenarios.py` verifying genuine, suspicious, and obvious scam acceptance cases.
+- **Files touched:**
+  - `app/agents/payment.py`, `app/agents/domain.py`, `app/agents/message.py`, `app/agents/number.py`
+  - `app/registry.py`, `app/schemas.py`, `app/main.py`, `app/explain.py`, `.gitignore`
+  - `scripts/train_message_model.py`, `scripts/test_three_scenarios.py`
+  - `tests/test_payment.py`, `tests/test_domain.py`, `tests/test_message.py`, `tests/test_number.py`, `tests/test_reports.py`
+  - `PLAN.md`, `docs/PHASE_3_SUMMARY.md`, `docs/BUILD_LOG.md`
+- **Tech / concepts used:** RapidFuzz token_set_ratio & Levenshtein distance, scikit-learn TF-IDF + LogisticRegression, joblib, httpx async client, respx mocking, phonenumbers, HMAC-SHA256, SQLAlchemy aggregations.
+- **Result / evidence:**
+  - 100/100 tests passed in pytest (100% green).
+  - All three hand-made scenarios verified: genuine (`MATCHES_OFFICIAL`, risk 0.03), unauthorized mobile (`SUSPICIOUS`, risk 0.55), obvious multi-tactic scam (`LIKELY_SCAM`, risk 0.85).
+  - `ruff check .` passing with 0 lint issues.
+- **Next step:** Phase 4: Resilience, caching, and safety (timeouts, circuit breaker, Redis cache, rate limiting, and hash-chained audit log).
+
 ---
 
 ## Decisions log

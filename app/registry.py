@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
+import hmac
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+    func,
     select,
 )
 from sqlalchemy.orm import (
@@ -127,6 +130,20 @@ class BrandSource(Base):
     verified_on: Mapped[str] = mapped_column(String(20), nullable=False)  # ISO Date YYYY-MM-DD
 
     brand: Mapped[Brand] = relationship("Brand", back_populates="sources")
+
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    identifier_hash: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    identifier_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    reporter_hash: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    category: Mapped[str] = mapped_column(String(50), default="scam", nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=lambda: dt.datetime.now(dt.timezone.utc), nullable=False
+    )
 
 
 def get_engine(db_url: str | None = None):
@@ -304,3 +321,87 @@ def is_brand_stale(brand: Brand, max_age_days: int = 90, ref_date: dt.date | Non
 
     age_days = (reference - latest_date).days
     return age_days > max_age_days
+
+
+HMAC_DEFAULT_SECRET = "trustshop-dev-hmac-secret-32b-key"
+
+
+def hmac_sha256(data: str, secret: str | None = None) -> str:
+    """HMAC-SHA256 hash for privacy-preserving community reports and audit identifiers."""
+    sec = secret or settings.get("hmac_secret", HMAC_DEFAULT_SECRET)
+    return hmac.new(sec.encode("utf-8"), data.strip().lower().encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def record_report(
+    session: Session,
+    identifier: str,
+    identifier_type: str,
+    reporter_id: str,
+    category: str = "scam",
+    notes: str | None = None,
+    secret: str | None = None,
+) -> tuple[Report, bool]:
+    """Record a user report with HMAC-hashed identifiers.
+    Deduplicates reports: if the same reporter reported this identifier, updates created_at.
+    Returns (report, is_new).
+    """
+    id_hash = hmac_sha256(identifier, secret)
+    rep_hash = hmac_sha256(reporter_id, secret)
+
+    existing = session.execute(
+        select(Report).where(
+            Report.identifier_hash == id_hash,
+            Report.reporter_hash == rep_hash,
+        )
+    ).scalar_one_or_none()
+
+    if existing:
+        existing.created_at = dt.datetime.now(dt.timezone.utc)
+        if notes:
+            existing.notes = notes
+        session.commit()
+        session.refresh(existing)
+        return existing, False
+
+    new_report = Report(
+        identifier_hash=id_hash,
+        identifier_type=identifier_type,
+        reporter_hash=rep_hash,
+        category=category,
+        notes=notes,
+    )
+    session.add(new_report)
+    session.commit()
+    session.refresh(new_report)
+    return new_report, True
+
+
+def count_distinct_reporters(
+    session: Session,
+    identifier: str,
+    secret: str | None = None,
+) -> int:
+    """Count the number of distinct reporters who flagged this identifier."""
+    id_hash = hmac_sha256(identifier, secret)
+    stmt = select(func.count(func.distinct(Report.reporter_hash))).where(
+        Report.identifier_hash == id_hash
+    )
+    return session.execute(stmt).scalar() or 0
+
+
+def get_report_stats(
+    session: Session,
+    identifier: str,
+    secret: str | None = None,
+) -> dict[str, int]:
+    """Get report stats (distinct reporters and total reports) for an identifier."""
+    id_hash = hmac_sha256(identifier, secret)
+    distinct_stmt = select(func.count(func.distinct(Report.reporter_hash))).where(
+        Report.identifier_hash == id_hash
+    )
+    total_stmt = select(func.count(Report.id)).where(
+        Report.identifier_hash == id_hash
+    )
+    distinct_count = session.execute(distinct_stmt).scalar() or 0
+    total_count = session.execute(total_stmt).scalar() or 0
+    return {"distinct_reporters": distinct_count, "total_reports": total_count}
