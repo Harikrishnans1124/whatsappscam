@@ -1,0 +1,32 @@
+verdict:
+  suspicious_from: 0.35
+  likely_scam_from: 0.65
+weights:
+  brand_identity: 0.35
+  payment: 0.20
+  message: 0.20
+  domain: 0.15
+  number: 0.10
+floors:
+  BRAND_CHANNEL_MISMATCH: 0.55
+  PERSONAL_PAYEE: 0.70
+  LOOKALIKE_DOMAIN: 0.85
+  OTP_REQUEST: 0.85
+  REMOTE_ACCESS_REQUEST: 0.85
+timeouts_ms:
+  brand_identity: 150
+  payment: 150
+  message: 150
+  number: 150
+  domain: 2500
+breaker:
+  fail_max: 5
+  reset_timeout_s: 30
+cache:
+  rdap_ttl_s: 86400
+rate_limit:
+  per_minute: 30
+registry:
+  stale_after_days: 90
+reports:
+  min_distinct_reporters: 3
