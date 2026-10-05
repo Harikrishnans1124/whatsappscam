@@ -1,0 +1,36 @@
+{
+  "machine": {
+    "os": "Windows 11",
+    "cpu": "Intel64 Family 6 Model 186 Stepping 2, GenuineIntel",
+    "python": "3.13.7"
+  },
+  "benchmarks": [
+    {
+      "scenario": "All cached",
+      "iterations": 50,
+      "p50_ms": 24.91,
+      "p95_ms": 34.35,
+      "mean_ms": 26.03,
+      "min_ms": 16.87,
+      "max_ms": 57.48
+    },
+    {
+      "scenario": "Uncached domain lookup",
+      "iterations": 50,
+      "p50_ms": 248.56,
+      "p95_ms": 287.37,
+      "mean_ms": 252.3,
+      "min_ms": 228.94,
+      "max_ms": 309.61
+    },
+    {
+      "scenario": "RDAP timeout (degraded)",
+      "iterations": 10,
+      "p50_ms": 141.42,
+      "p95_ms": 250.07,
+      "mean_ms": 140.36,
+      "min_ms": 31.8,
+      "max_ms": 253.68
+    }
+  ]
+}

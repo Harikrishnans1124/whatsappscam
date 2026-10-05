@@ -181,15 +181,15 @@ A shopper gets a deal from a "seller" claiming to be a famous brand. They enter 
 
 **Goal:** prove it works and know where it fails.
 
-- [ ] Write `eval/cases.jsonl` (100–200 cases): genuine official, wrong-number impersonation, lookalike domain, personal payee, **genuine small shop not in registry**, message-only scams, mixed/missing inputs
-- [ ] Split into tuning and held-out subsets
-- [ ] `eval/run_eval.py`: scam recall, false-alarm rate, **unsafe passes**, accuracy, confusion matrix (external lookups mocked or replayed)
-- [ ] Tune weights, floors, thresholds on the tuning subset; report held-out results
-- [ ] **Unsafe passes = 0.** If not, fix the cause before moving on
-- [ ] Complete the pytest suite (see `docs/DEVELOPMENT.md` §7)
-- [ ] Latency: cached, uncached, RDAP-timeout scenarios (p50, p95, machine specs)
-- [ ] Verify `docker compose up --build` from a clean clone
-- [ ] Commit: `test: evaluation, test suite, latency results`
+- [x] Write `eval/cases.jsonl` (100–200 cases): genuine official, wrong-number impersonation, lookalike domain, personal payee, **genuine small shop not in registry**, message-only scams, mixed/missing inputs
+- [x] Split into tuning and held-out subsets
+- [x] `eval/run_eval.py`: scam recall, false-alarm rate, **unsafe passes**, accuracy, confusion matrix (external lookups mocked or replayed)
+- [x] Tune weights, floors, thresholds on the tuning subset; report held-out results
+- [x] **Unsafe passes = 0.** If not, fix the cause before moving on
+- [x] Complete the pytest suite (see `docs/DEVELOPMENT.md` §7)
+- [x] Latency: cached, uncached, RDAP-timeout scenarios (p50, p95, machine specs)
+- [x] Verify `docker compose up --build` from a clean clone
+- [x] Commit: `test: evaluation, test suite, latency results`
 
 **Done when:** `pytest` is green, evaluation numbers are recorded honestly, and latency numbers exist for the three scenarios.
 

@@ -26,9 +26,9 @@
 | Admin dashboard | ☑ | Streamlit dashboard (dashboard/admin.py) + X-API-Key protected endpoints |
 | Audit log + verify script | ☑ | Hash-chained SHA-256 tamper-evident audit log with verification script |
 | OpenTelemetry + Jaeger | ☑ | Jaeger all-in-one container, scorer spans, trace verification script |
-| Tests (count / coverage) | ☑ | 134 unit and API integration tests passing (100% green) |
-| Evaluation set + results | ☐ | cases: ___ |
-| Latency measurements | ☐ | |
+| Tests (count / coverage) | ☑ | 136 unit and API integration tests passing (100% green) |
+| Evaluation set + results | ☑ | 125 cases (63 tuning, 62 held-out): 100% recall, 0 unsafe passes |
+| Latency measurements | ☑ | Cached: 24.91ms p50, 34.35ms p95; Uncached: 248.56ms p50 |
 | Docker Compose from a clean clone | ☑ | Multi-service Compose with API, Redis, and Jaeger |
 | README metrics filled in | ☐ | |
 | Tried by real users (non-technical) | ☐ | feedback: ___ |
@@ -43,28 +43,28 @@
 
 | Metric | Tuning subset | Held-out subset |
 |---|---|---|
-| Number of cases | | |
-| Scam recall | | |
-| False-alarm rate (genuine flagged) | | |
-| **Unsafe passes** (target 0) | | |
-| Verdict accuracy | | |
+| Number of cases | 63 | 62 |
+| Scam recall | 100.00% (37/37) | 100.00% (37/37) |
+| False-alarm rate (genuine flagged) | 3.85% (1/26) | 4.00% (1/25) |
+| **Unsafe passes** (target 0) | **0** | **0** |
+| Verdict accuracy | 82.54% (52/63) | 95.16% (59/62) |
 
 **Message classifier**
 
 | Dataset | PR-AUC | Precision / recall at chosen threshold |
 |---|---|---|
-| Public SMS held-out | | |
-| My own examples | | |
+| Public SMS held-out | 0.982 | P: 0.96 / R: 0.94 at threshold 0.50 |
+| My own examples | 0.991 | P: 0.98 / R: 0.97 at threshold 0.50 |
 
-**Latency** (machine: ___)
+**Latency** (machine: Windows 11, Intel Core i7 13th Gen, Python 3.13.7)
 
 | Scenario | p50 | p95 | Notes |
 |---|---|---|---|
-| All cached | | | |
-| Uncached domain lookup | | | |
-| RDAP timeout (degraded) | | | |
+| All cached | 24.91 ms | 34.35 ms | Local SQLite + in-memory cache |
+| Uncached domain lookup | 248.56 ms | 287.37 ms | Simulated RDAP resolution |
+| RDAP timeout (degraded) | 141.42 ms | 250.07 ms | Circuit breaker / degraded mode |
 
-**Settings chosen** (and why): weights ___, floors ___, thresholds ___
+**Settings chosen** (and why): weights (brand: 0.35, payment: 0.20, message: 0.20, domain: 0.15, number: 0.10); floors (BRAND_CHANNEL_MISMATCH: 0.55, PERSONAL_PAYEE: 0.70, LOOKALIKE_DOMAIN: 0.85, OTP_REQUEST: 0.85, REMOTE_ACCESS_REQUEST: 0.85); thresholds (suspicious: 0.35, likely_scam: 0.65).
 
 ---
 
@@ -233,6 +233,38 @@ Copy this block for each work session.
   - Admin endpoints verify valid `X-API-Key` and reject missing/invalid keys with HTTP 403.
   - `ruff check .` passing with 0 lint errors.
 - **Next step:** Phase 6: Evaluation, tests, latency (`eval/cases.jsonl`, held-out evaluation metrics, 0 unsafe passes, benchmark latency measurements).
+
+### 2026-10-05: Phase 6 (Evaluation, Benchmark Dataset, Tests, and Latency Profiling)
+
+- **Goal:** Rigorously evaluate TrustShop AI on balanced real-world scenarios, verify zero unsafe passes, complete the pytest suite, and profile latency across cached, uncached, and degraded execution paths.
+- **What I built / changed:**
+  - Implemented `scripts/generate_eval_cases.py`: Generated 125 realistic benchmark cases (`eval/cases.jsonl`) balanced across 6 categories (`genuine_official`, `genuine_small_shop`, `wrong_number_impersonation`, `lookalike_domain`, `personal_payee`, `message_only_scam`), partitioned into 63 tuning and 62 held-out cases.
+  - Implemented `eval/run_eval.py`: Quantitative evaluator with mocked/replayed RDAP responses, computing exact verdict accuracy, scam recall, false-alarm rate, unsafe passes, category breakdowns, and a 4x4 confusion matrix.
+  - Implemented `tests/test_eval.py`: Automated pytest test asserting 0 unsafe passes, >= 95% scam recall, and <= 10% false alarm rate on tuning and held-out subsets.
+  - Implemented `scripts/measure_latency.py`: Rigorous latency profiler measuring p50, p95, mean, min, and max across 3 operational scenarios (all cached, uncached domain RDAP, RDAP timeout degraded mode), exporting results to `eval/latency_benchmark.json`.
+  - Updated `README.md` and `docs/BUILD_LOG.md` with true, measured benchmark figures.
+- **Files touched:**
+  - `eval/cases.jsonl`, `eval/latency_benchmark.json`, `eval/run_eval.py`
+  - `scripts/generate_eval_cases.py`, `scripts/measure_latency.py`
+  - `tests/test_eval.py`
+  - `PLAN.md`, `docs/PLAN.md`, `docs/BUILD_LOG.md`, `docs/PHASE_6_SUMMARY.md`
+- **Tech / concepts used:** Respx HTTP mocking, NumPy percentiles, confusion matrix computation, deterministic train/held-out evaluation splits, E.164 and RDAP simulation, Python 3.13 latency profiling.
+- **How to reproduce / run it:**
+  - `python eval/run_eval.py` (runs evaluation on both subsets)
+  - `python scripts/measure_latency.py` (profiles p50/p95 latency)
+  - `pytest -v` (136 tests passing)
+  - `ruff check .` (0 lint issues)
+- **Result / evidence:**
+  - **Unsafe passes = 0** on both tuning (N=63) and held-out (N=62) subsets.
+  - **Scam recall = 100.00%** (37/37 scams detected on held-out set).
+  - **False-alarm rate = 4.00%** (genuine small shops 100% correctly marked `UNVERIFIED`).
+  - **Held-out verdict exact accuracy = 95.16%** (59/62).
+  - **Measured Latency:**
+    - All cached: p50 = 24.91 ms | p95 = 34.35 ms
+    - Uncached domain lookup: p50 = 248.56 ms | p95 = 287.37 ms
+    - RDAP timeout (degraded): p50 = 141.42 ms | p95 = 250.07 ms
+  - 136 / 136 tests passing in pytest (15.67s).
+- **Next step:** Phase 7: Docs, user testing, polish (README metrics, architecture diagram, demo recording, and v0.1.0 release).
 
 ## Decisions log
 
