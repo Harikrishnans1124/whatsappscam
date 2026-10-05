@@ -1,93 +1,124 @@
-"""Explanation and advice generator for TrustShop AI."""
+"""Explanation, translation, and actionable advice generator for TrustShop AI."""
 
 from __future__ import annotations
 
+import logging
+from pathlib import Path
 from typing import Any
+
+import yaml
 
 from app.extraction import CheckContext
 from app.schemas import ReasonItem
 
-REASON_TEMPLATES = {
-    "BRAND_CHANNEL_MATCH": "This contact channel matches the brand's verified official registry records.",
-    "BRAND_CHANNEL_MISMATCH": "This contact number or website is not on the brand's official published list.",
-    "BRAND_NOT_IN_REGISTRY": "This brand is not covered in our official registry. Cannot verify against official channels.",
-    "REGISTRY_STALE": "The registry information for this brand is older than 90 days and pending re-verification.",
-    "PERSONAL_PAYEE": "The payment payee appears to be an individual's personal account rather than the official company.",
-    "PAYEE_NAME_MISMATCH": "The payee name does not match the company's registered legal entity.",
-    "PAYEE_NAME_MATCH": "The payment payee matches the brand's verified legal company name.",
-    "PHONE_STYLE_UPI": "The UPI ID uses a personal mobile number format rather than an official merchant ID.",
-    "OFFICIAL_DOMAIN_MATCH": "The website domain matches the brand's official verified domain.",
-    "LOOKALIKE_DOMAIN": "The website name closely imitates an official brand domain but is registered under an unauthorized name.",
-    "NEW_DOMAIN": "The website domain was registered very recently.",
-    "URL_SHORTENER": "A URL shortener was used to conceal the final destination link.",
-    "OTP_REQUEST": "The message requests a one-time password (OTP). Legitimate brands will never ask for your OTP.",
-    "REMOTE_ACCESS_REQUEST": "The message asks you to install remote-access software (e.g. AnyDesk, TeamViewer).",
-    "URGENCY_PRESSURE": "The seller uses high-pressure urgency tactics ('today only', 'last items').",
-    "ADVANCE_PAYMENT_REQUEST": "The seller demands advance payment outside official checkout channels.",
-    "SUSPICIOUS_OFFER": "The message advertises unrealistic discounts or unverified lottery/prize claims.",
-    "OFF_PLATFORM_MOVE": "The seller requests moving conversation to personal numbers or unmonitored channels.",
-    "INVALID_PHONE_NUMBER": "The phone number format is invalid according to international numbering standards.",
-    "REPORTED_BY_USERS": "This contact has been reported by multiple independent users as suspicious.",
-    "RDAP_LOOKUP_FAILED": "Domain registration records could not be retrieved from RDAP servers.",
-    "SCORER_UNAVAILABLE": "A verification service is temporarily unavailable due to upstream issues.",
-    "SCORER_TIMEOUT": "A verification service timed out before completing.",
-    "SCORER_FAILED": "An unexpected error occurred during verification.",
-    "DEGRADED_MODE": "One or more external verification checks were unavailable. Proceed with caution.",
-}
+logger = logging.getLogger(__name__)
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+I18N_DIR = PROJECT_ROOT / "i18n"
+
+SUPPORTED_LANGUAGES = ("en", "ml", "hi")
+DEFAULT_LANGUAGE = "en"
+
+# In-memory cache for loaded translations
+_TRANSLATION_CACHE: dict[str, dict[str, Any]] = {}
 
 
-def get_reason_explanation(code: str) -> str:
-    return REASON_TEMPLATES.get(code, f"Check triggered code {code}.")
+def load_translations(language: str) -> dict[str, Any]:
+    """Load translation YAML for a given language code with fallback to English."""
+    lang = language.lower() if language else DEFAULT_LANGUAGE
+    if lang not in SUPPORTED_LANGUAGES:
+        lang = DEFAULT_LANGUAGE
+
+    if lang in _TRANSLATION_CACHE:
+        return _TRANSLATION_CACHE[lang]
+
+    yaml_file = I18N_DIR / f"{lang}.yaml"
+    if not yaml_file.exists():
+        # Fall back to English file
+        yaml_file = I18N_DIR / f"{DEFAULT_LANGUAGE}.yaml"
+
+    try:
+        with open(yaml_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+            _TRANSLATION_CACHE[lang] = data
+            return data
+    except (OSError, yaml.YAMLError) as exc:
+        logger.warning("Could not load translation file %s: %s", yaml_file, exc)
+        return {}
+
+
+def get_reason_explanation(code: str, language: str = DEFAULT_LANGUAGE) -> str:
+    """Get human-readable sentence for a reason code in requested language."""
+    data = load_translations(language)
+    reasons = data.get("reasons", {})
+    if code in reasons:
+        return str(reasons[code])
+
+    # Fallback to English if not found in requested language
+    if language != DEFAULT_LANGUAGE:
+        en_data = load_translations(DEFAULT_LANGUAGE)
+        en_reasons = en_data.get("reasons", {})
+        if code in en_reasons:
+            return str(en_reasons[code])
+
+    return f"Check triggered code {code}."
 
 
 def generate_explanation(
     context: CheckContext,
     verdict: str,
     reason_codes: list[str],
+    language: str | None = None,
 ) -> dict[str, Any]:
+    """Generate localized summary, reasons list, advice, and disclaimer."""
+    lang = (language or context.language or DEFAULT_LANGUAGE).lower()
+    if lang not in SUPPORTED_LANGUAGES:
+        lang = DEFAULT_LANGUAGE
+
+    data = load_translations(lang)
+    en_data = load_translations(DEFAULT_LANGUAGE) if lang != DEFAULT_LANGUAGE else data
+
+    # 1. Resolve brand display name
     brand_name = "the claimed brand"
+    if lang == "ml":
+        brand_name = "അവകാശപ്പെട്ട ബ്രാൻഡ്"
+    elif lang == "hi":
+        brand_name = "कथित ब्रांड"
+
     if context.brand and context.brand.get("name"):
         brand_name = context.brand["name"]
 
-    # Build reasons list
+    # 2. Build reasons list
     reasons_list: list[ReasonItem] = []
     for code in reason_codes:
-        reasons_list.append(ReasonItem(code=code, text=get_reason_explanation(code)))
+        reasons_list.append(
+            ReasonItem(code=code, text=get_reason_explanation(code, language=lang))
+        )
 
-    # Summary
-    if verdict == "MATCHES_OFFICIAL":
-        summary = f"This contact matches the official published channels for {brand_name}."
-    elif verdict == "LIKELY_SCAM":
-        summary = f"Warning: Strong indicators of impersonation. This does not look like {brand_name}."
-    elif verdict == "SUSPICIOUS":
-        summary = f"Caution: Red flags detected. This contact does not match {brand_name}'s official records."
-    else:  # UNVERIFIED
-        summary = "Cannot verify this seller against official brand channels."
+    # 3. Localized summary with brand replacement
+    summaries = data.get("summaries", {})
+    summary_tmpl = summaries.get(verdict) or en_data.get("summaries", {}).get(verdict)
+    if summary_tmpl:
+        summary = summary_tmpl.format(brand_name=brand_name)
+    else:
+        summary = f"Verification complete. Verdict: {verdict}."
 
-    # Advice
-    advice: list[str] = []
-    if verdict == "LIKELY_SCAM":
-        advice.append("Do not send any money, scan QR codes, or share card/UPI details.")
-        advice.append(f"Open {brand_name}'s official website or app yourself and order there.")
-        advice.append(
-            "If you have already sent money, immediately call 1930 (national cybercrime helpline) and report at https://cybercrime.gov.in."
-        )
-    elif verdict == "SUSPICIOUS":
-        advice.append("Do not make advance payments on this number, link, or payment ID.")
-        advice.append(f"Contact {brand_name} directly through their official app or website to confirm.")
-    elif verdict == "MATCHES_OFFICIAL":
-        advice.append("The contact channel matches verified official records.")
-        advice.append(
-            f"Still confirm your cart and checkout directly inside {brand_name}'s official app before completing payment."
-        )
-    else:  # UNVERIFIED
-        advice.append("Do not treat this seller as verified or safe.")
-        advice.append(
-            "Always purchase through the brand's official store, verified website, or approved app."
-        )
+    # 4. Localized advice list with brand replacement
+    advice_map = data.get("advice", {})
+    advice_items = advice_map.get(verdict) or en_data.get("advice", {}).get(verdict) or []
+    formatted_advice: list[str] = []
+    for item in advice_items:
+        formatted_advice.append(str(item).format(brand_name=brand_name))
+
+    # 5. Localized disclaimer
+    disclaimer = data.get("disclaimer") or en_data.get(
+        "disclaimer",
+        "Automated estimate, not proof. Always confirm through the brand's official website or app.",
+    )
 
     return {
         "summary": summary,
         "reasons": reasons_list,
-        "advice": advice,
+        "advice": formatted_advice,
+        "disclaimer": disclaimer,
     }

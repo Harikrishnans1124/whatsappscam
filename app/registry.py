@@ -405,3 +405,82 @@ def get_report_stats(
     distinct_count = session.execute(distinct_stmt).scalar() or 0
     total_count = session.execute(total_stmt).scalar() or 0
     return {"distinct_reporters": distinct_count, "total_reports": total_count}
+
+
+def get_reports_queue(session: Session, limit: int = 100) -> list[dict[str, Any]]:
+    """Fetch aggregated community reports queue for admin review."""
+    stmt = (
+        select(
+            Report.identifier_hash,
+            Report.identifier_type,
+            func.count(func.distinct(Report.reporter_hash)).label("distinct_reporters"),
+            func.count(Report.id).label("total_reports"),
+            func.max(Report.created_at).label("latest_report_at"),
+            func.max(Report.category).label("category"),
+        )
+        .group_by(Report.identifier_hash, Report.identifier_type)
+        .order_by(
+            func.count(func.distinct(Report.reporter_hash)).desc(),
+            func.max(Report.created_at).desc(),
+        )
+        .limit(limit)
+    )
+    rows = session.execute(stmt).all()
+    results = []
+    for r in rows:
+        notes_stmt = select(Report.notes).where(
+            Report.identifier_hash == r.identifier_hash,
+            Report.notes.isnot(None),
+            Report.notes != "",
+        ).limit(5)
+        notes = [n for (n,) in session.execute(notes_stmt).all() if n]
+
+        results.append({
+            "identifier_hash": r.identifier_hash,
+            "identifier_type": r.identifier_type,
+            "distinct_reporters": r.distinct_reporters,
+            "total_reports": r.total_reports,
+            "category": r.category,
+            "latest_report_at": r.latest_report_at.isoformat() if r.latest_report_at else "",
+            "notes": notes,
+        })
+    return results
+
+
+def get_registry_freshness_report(
+    session: Session,
+    max_age_days: int = 90,
+    ref_date: dt.date | None = None,
+) -> list[dict[str, Any]]:
+    """Return freshness report for all registered brands."""
+    today = ref_date or dt.datetime.now(dt.timezone.utc).date()
+    brands = get_all_brands(session)
+    report = []
+    for b in brands:
+        latest_date: dt.date | None = None
+        for src in b.sources:
+            try:
+                d = dt.date.fromisoformat(src.verified_on)
+                if latest_date is None or d > latest_date:
+                    latest_date = d
+            except ValueError:
+                continue
+
+        if latest_date is None:
+            age_days = None
+            is_stale = True
+            status = "NO_VALID_DATE"
+        else:
+            age_days = (today - latest_date).days
+            is_stale = age_days > max_age_days
+            status = "STALE" if is_stale else "FRESH"
+
+        report.append({
+            "slug": b.slug,
+            "name": b.name,
+            "latest_verified_on": latest_date.isoformat() if latest_date else None,
+            "age_days": age_days,
+            "is_stale": is_stale,
+            "status": status,
+        })
+    return report

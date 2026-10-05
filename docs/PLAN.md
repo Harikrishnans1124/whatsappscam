@@ -163,15 +163,15 @@ A shopper gets a deal from a "seller" claiming to be a famous brand. They enter 
 
 **Goal:** make it usable by non-technical people.
 
-- [ ] `explain.py` + `i18n/en.yaml`: sentence per reason code, advice per verdict
-- [ ] `i18n/ml.yaml` and `i18n/hi.yaml` (get a native speaker to review the wording)
-- [ ] Frontend: language selector, "where do I find the payee name?" help text, big clear verdict, "open the official site" action first, report button
-- [ ] PWA: `manifest.json` + service worker (installable on a phone)
-- [ ] `GET /v1/brands` and `/v1/brands/{slug}` so users can see the registry and its sources
-- [ ] Admin endpoints (`X-API-Key`) and `dashboard/admin.py` (Streamlit): add/update brands, stale entries list, report queue
-- [ ] `scripts/check_registry_freshness.py`
-- [ ] Add OpenTelemetry + Jaeger (spans per scorer) and screenshot one trace
-- [ ] Commit: `feat: explanations, i18n, reports, admin, tracing`
+- [x] `explain.py` + `i18n/en.yaml`: sentence per reason code, advice per verdict
+- [x] `i18n/ml.yaml` and `i18n/hi.yaml` (get a native speaker to review the wording)
+- [x] Frontend: language selector, "where do I find the payee name?" help text, big clear verdict, "open the official site" action first, report button
+- [x] PWA: `manifest.json` + service worker (installable on a phone)
+- [x] `GET /v1/brands` and `/v1/brands/{slug}` so users can see the registry and its sources
+- [x] Admin endpoints (`X-API-Key`) and `dashboard/admin.py` (Streamlit): add/update brands, stale entries list, report queue
+- [x] `scripts/check_registry_freshness.py`
+- [x] Add OpenTelemetry + Jaeger (spans per scorer) and screenshot one trace
+- [x] Commit: `feat: explanations, i18n, reports, admin, tracing`
 
 **Done when:** a non-technical person can use it on a phone and understand the result in their language.
 

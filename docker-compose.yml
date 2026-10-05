@@ -9,10 +9,13 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - HMAC_SECRET=dev-secret-key-change-me
       - ADMIN_API_KEY=dev-admin-key-change-me
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+      - OTEL_SERVICE_NAME=trustshop-api
     volumes:
       - ./data:/app/data
     depends_on:
       - redis
+      - jaeger
     restart: unless-stopped
 
   redis:
@@ -23,6 +26,17 @@ services:
     restart: unless-stopped
     volumes:
       - redis_data:/data
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: trustshop-jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: unless-stopped
 
 volumes:
   redis_data:

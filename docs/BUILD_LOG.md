@@ -13,27 +13,27 @@
 | Brand registry (N brands, all with sources) | ☑ | N = 11 (Amazon India, Flipkart, Myntra, Tata CLiQ, AJIO, Meesho, Nykaa, Zomato, Swiggy, Apple India, Acme Footwear) |
 | Extraction (phone / URL / UPI / brand detection) | ☑ | Tested with Indian & international formats, UPI vs email filtering |
 | Brand identity scorer | ☑ | Outcomes: MATCH (0.0), MISMATCH (0.85), UNKNOWN_BRAND (0.20), NO_BRAND_CLAIM (None) |
-| Payment scorer | ☐ | Phase 3a |
-| Message scorer: rules | ☐ | Phase 3c |
-| Message scorer: TF-IDF model | ☐ | PR-AUC public: ___ / own set: ___ |
-| Domain scorer (RDAP + lookalike) | ☐ | Phase 3b |
-| Number scorer + community reports | ☐ | Phase 3d |
+| Payment scorer | ☑ | RapidFuzz token matching, legal entity variations, PERSONAL_PAYEE floor (0.70) |
+| Message scorer: rules | ☑ | Regex patterns for OTP, remote access, urgency, advance fee, prize scams |
+| Message scorer: TF-IDF model | ☑ | Scikit-learn TF-IDF + LogisticRegression model with async inference |
+| Domain scorer (RDAP + lookalike) | ☑ | Typo distance, brand stuffing, Punycode/homoglyph checks, async RDAP age |
+| Number scorer + community reports | ☑ | Phonenumbers validity + HMAC-SHA256 privacy crowd reports with deduplication |
 | Decision layer (weights, floors, verdicts) | ☑ | Renormalized weights, floors (0.55-0.85), 4 verdicts, degraded handling |
-| Timeouts + circuit breaker | ☐ | Phase 4 |
-| Redis cache + rate limiting | ☐ | Phase 4 |
-| Explanations (en / ml / hi) | ☑ | English reason templates, summary and advice generation |
-| Web app / PWA | ☑ | Mobile-friendly form + live result card served via FastAPI |
-| Admin dashboard | ☐ | Phase 5 |
-| Audit log + verify script | ☐ | Phase 4 |
-| OpenTelemetry + Jaeger | ☐ | Phase 5 |
-| Tests (count / coverage) | ☑ | 61 unit and API integration tests passing (100% green) |
+| Timeouts + circuit breaker | ☑ | Per-scorer timeouts (150ms/2500ms) + 3-state CircuitBreaker |
+| Redis cache + rate limiting | ☑ | Redis 24h RDAP TTL, in-memory fallback, fixed-window 429 rate limiter |
+| Explanations (en / ml / hi) | ☑ | Localized YAML translations for English, Malayalam, Hindi |
+| Web app / PWA | ☑ | Mobile-first UI, language selector, manifest.json, sw.js offline cache |
+| Admin dashboard | ☑ | Streamlit dashboard (dashboard/admin.py) + X-API-Key protected endpoints |
+| Audit log + verify script | ☑ | Hash-chained SHA-256 tamper-evident audit log with verification script |
+| OpenTelemetry + Jaeger | ☑ | Jaeger all-in-one container, scorer spans, trace verification script |
+| Tests (count / coverage) | ☑ | 134 unit and API integration tests passing (100% green) |
 | Evaluation set + results | ☐ | cases: ___ |
 | Latency measurements | ☐ | |
-| Docker Compose from a clean clone | ☑ | Multi-service Compose with API and Redis |
+| Docker Compose from a clean clone | ☑ | Multi-service Compose with API, Redis, and Jaeger |
 | README metrics filled in | ☐ | |
 | Tried by real users (non-technical) | ☐ | feedback: ___ |
 
-**Technologies actually used so far:** Python 3.13, FastAPI, Pydantic v2, Starlette, SQLAlchemy 2.0, SQLite, PyYAML, phonenumbers, tldextract, rapidfuzz, pytest, pytest-asyncio, ruff, HTML5/CSS3/JavaScript, Docker
+**Technologies actually used so far:** Python 3.13, FastAPI, Pydantic v2, Starlette, SQLAlchemy 2.0, SQLite, PyYAML, phonenumbers, tldextract, rapidfuzz, scikit-learn, joblib, OpenTelemetry, Streamlit, pytest, pytest-asyncio, respx, ruff, HTML5/CSS3/JavaScript, Docker
 
 ---
 
@@ -200,7 +200,39 @@ Copy this block for each work session.
   - `ruff check .` passing with 0 lint issues.
 - **Next step:** Phase 5: Explanations, translations (i18n), reports, admin dashboard (Streamlit), and PWA.
 
----
+### 2026-10-05: Phase 5 (Explanations, i18n, Reports, Admin Dashboard, and OpenTelemetry Tracing)
+
+- **Goal:** Make the tool fully accessible to non-technical Indian shoppers in their native language (Malayalam & Hindi), provide admin brand management and freshness monitoring, enable PWA mobile installation, and establish distributed OpenTelemetry tracing with Jaeger.
+- **What I built / changed:**
+  - Implemented `i18n/en.yaml`, `i18n/ml.yaml`, and `i18n/hi.yaml`: Full multilingual dictionary covering all 26 reason codes, verdict summaries with dynamic brand interpolation, actionable advice, and disclaimers.
+  - Refactored `app/explain.py`: In-memory YAML translation cache with robust English fallback, brand token injection, and language-aware reason formatting.
+  - Implemented PWA suite: `frontend/manifest.json`, `frontend/sw.js` (asset caching + offline resilience), and high-resolution icons (`frontend/icons/icon-192.png`, `frontend/icons/icon-512.png`).
+  - Enhanced frontend UI: Added language selector (English, മലയാളം, हिन्दी), expandable payee name guidance for UPI apps (GPay/PhonePe/Paytm), prominent verdict card, primary **"Open Official Website"** CTA button linking directly to verified domains, and community reporting modal.
+  - Implemented Admin API endpoints in `app/main.py`: `POST /v1/admin/brands` (with mandatory source URL & verified date enforcement), `PUT /v1/admin/brands/{slug}`, `GET /v1/admin/reports` (crowd reports review queue), and `GET /v1/admin/freshness` (stale brand tracker), secured by constant-time `X-API-Key` authentication.
+  - Implemented Streamlit Admin Dashboard (`dashboard/admin.py`): Interactive control center for browsing brands, adding/updating registry entries, monitoring verification age, and inspecting anonymized community reports.
+  - Implemented OpenTelemetry tracing (`app/telemetry.py`): Structured span tree (`scorer.brand_identity`, `scorer.payment`, `scorer.message`, `scorer.domain`, `scorer.number`, `decision_layer`, `audit_log`) without PII exposure, updated `docker-compose.yml` with Jaeger all-in-one container, and built trace inspection tool `scripts/verify_trace.py`.
+  - Added unit test suites: `tests/test_explain_i18n.py`, `tests/test_admin.py`, `tests/test_telemetry.py`, and `tests/test_frontend_pwa.py`.
+- **Files touched:**
+  - `i18n/en.yaml`, `i18n/ml.yaml`, `i18n/hi.yaml`
+  - `app/explain.py`, `app/extraction.py`, `app/schemas.py`, `app/registry.py`, `app/telemetry.py`, `app/main.py`
+  - `frontend/index.html`, `frontend/style.css`, `frontend/app.js`, `frontend/manifest.json`, `frontend/sw.js`, `frontend/icons/`
+  - `dashboard/admin.py`, `scripts/verify_trace.py`, `docker-compose.yml`
+  - `tests/test_explain_i18n.py`, `tests/test_admin.py`, `tests/test_telemetry.py`, `tests/test_frontend_pwa.py`
+  - `PLAN.md`, `docs/PLAN.md`, `docs/PHASE_5_SUMMARY.md`, `docs/BUILD_LOG.md`
+- **Tech / concepts used:** Multilingual i18n localization (PyYAML), Progressive Web Apps (Service Workers, Manifest v2), Streamlit, OpenTelemetry SDK & Tracing API, Jaeger OTLP gRPC/HTTP exporter, RFC 9457 Problem Details, HMAC authentication.
+- **How to reproduce / run it:**
+  - `pytest` (134 tests passing)
+  - `ruff check .` (0 lint issues)
+  - `python scripts/verify_trace.py` (displays 7-span execution timeline)
+  - `streamlit run dashboard/admin.py` (launches Admin Control Center)
+  - `uvicorn app.main:app --port 8000` (test multilingual UI at `http://localhost:8000`)
+- **Result / evidence:**
+  - 134 / 134 unit and integration tests passing in pytest (8.27s).
+  - OpenTelemetry trace verified with 7 distinct spans per check request.
+  - Multi-language verification tests for Malayalam and Hindi passing cleanly.
+  - Admin endpoints verify valid `X-API-Key` and reject missing/invalid keys with HTTP 403.
+  - `ruff check .` passing with 0 lint errors.
+- **Next step:** Phase 6: Evaluation, tests, latency (`eval/cases.jsonl`, held-out evaluation metrics, 0 unsafe passes, benchmark latency measurements).
 
 ## Decisions log
 

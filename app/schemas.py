@@ -138,3 +138,38 @@ class ReportResponse(BaseModel):
     total_reports: int
     message: str = "Report successfully registered."
 
+
+class BrandSourceInput(BaseModel):
+    url: str = Field(..., description="Official source URL")
+    verified_on: str = Field(..., description="ISO verification date YYYY-MM-DD")
+
+
+class BrandCreateUpdateRequest(BaseModel):
+    slug: str = Field(..., min_length=2, max_length=100, description="Unique slug for the brand")
+    name: str = Field(..., min_length=2, max_length=200, description="Full brand display name")
+    aliases: list[str] = Field(default_factory=list, description="Common aliases or alternate spellings")
+    legal_names: list[str] = Field(default_factory=list, description="Registered legal entity names")
+    official_domains: list[str] = Field(..., min_length=1, description="Official domain names")
+    official_phones: list[str] = Field(default_factory=list, description="Official support phones in E.164")
+    payment_policy: str = Field(default="", description="Payment instructions or policy")
+    sources: list[BrandSourceInput] = Field(..., min_length=1, description="Source URLs and verification dates")
+
+
+class ReportQueueItem(BaseModel):
+    identifier_hash: str
+    identifier_type: str
+    distinct_reporters: int
+    total_reports: int
+    category: str
+    latest_report_at: str
+    notes: list[str] = Field(default_factory=list)
+
+
+class FreshnessItem(BaseModel):
+    slug: str
+    name: str
+    latest_verified_on: str | None = None
+    age_days: int | None = None
+    is_stale: bool
+    status: str
+

@@ -2,12 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="description" content="Check WhatsApp sellers, phone numbers, links, and payment IDs before you pay. Verified official brand registry protection.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <title>TrustShop AI - Check Before You Pay</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
   <header class="header">
@@ -16,53 +20,68 @@
         <span class="logo-shield">🛡️</span>
         <span class="logo-text">TrustShop<strong>AI</strong></span>
       </div>
-      <div class="tagline">Check before you pay</div>
+      <div class="header-right">
+        <span class="tagline" id="taglineText">Check before you pay</span>
+        <div class="lang-selector-wrapper">
+          <label for="langSelect" class="sr-only">Language</label>
+          <select id="langSelect" class="lang-select" aria-label="Select language">
+            <option value="en" selected>English</option>
+            <option value="ml">മലയാളം</option>
+            <option value="hi">हिन्दी</option>
+          </select>
+        </div>
+      </div>
     </div>
   </header>
 
   <main class="container main-content">
     <div class="intro-card">
-      <h1>Is this seller legitimate?</h1>
-      <p>Paste the phone number, WhatsApp chat, link, or payment details a seller gave you. We check whether it really belongs to the brand they claim to be.</p>
+      <h1 id="heroTitle">Is this seller legitimate?</h1>
+      <p id="heroDesc">Paste the phone number, WhatsApp chat, link, or payment details a seller gave you. We check whether it really belongs to the brand they claim to be.</p>
     </div>
 
     <!-- Check Form -->
     <form id="checkForm" class="card form-card">
       <div class="form-group">
-        <label for="claimedBrand">Brand they claim to be (optional)</label>
+        <label for="claimedBrand" id="brandLabel">Brand they claim to be (optional)</label>
         <input type="text" id="claimedBrand" placeholder="e.g. Flipkart, Amazon India, Myntra, Tata CLiQ">
-        <small class="help-text">Leave blank to let us auto-detect it from the chat or link.</small>
+        <small class="help-text" id="brandHelp">Leave blank to let us auto-detect it from the chat or link.</small>
       </div>
 
       <div class="form-group">
-        <label for="phoneNumber">Phone / WhatsApp Number</label>
+        <label for="phoneNumber" id="phoneLabel">Phone / WhatsApp Number</label>
         <input type="text" id="phoneNumber" placeholder="e.g. +91 98765 43210 or 09876543210">
       </div>
 
       <div class="form-group">
-        <label for="messageText">Chat message text</label>
+        <label for="messageText" id="chatLabel">Chat message text</label>
         <textarea id="messageText" rows="3" placeholder="Paste the message or chat snippet here..."></textarea>
       </div>
 
       <div class="form-group">
-        <label for="url">Website link (URL)</label>
+        <label for="url" id="urlLabel">Website link (URL)</label>
         <input type="text" id="url" placeholder="e.g. https://flipkart.com/deal or discount-outlet.shop">
       </div>
 
       <div class="form-row">
         <div class="form-group half">
-          <label for="upiId">UPI ID / VPA</label>
+          <label for="upiId" id="upiLabel">UPI ID / VPA</label>
           <input type="text" id="upiId" placeholder="e.g. merchant@okhdfcbank or 9876543210@ybl">
         </div>
         <div class="form-group half">
-          <label for="displayName">Payee name shown in UPI app</label>
+          <div class="label-with-help">
+            <label for="displayName" id="payeeLabel">Payee name shown in UPI app</label>
+            <button type="button" id="payeeHelpBtn" class="help-btn" title="Help">ℹ️ Where to find?</button>
+          </div>
           <input type="text" id="displayName" placeholder="e.g. Rakesh K or Flipkart Internet">
-          <small class="help-text">The name your UPI app shows before you pay.</small>
+          <div id="payeeHelpBox" class="help-box hidden">
+            <small id="payeeHelpText">When you enter a UPI ID or scan a QR in Google Pay, PhonePe, or Paytm, the app shows the verified recipient name before you enter your UPI PIN. Copy or type that exact name here.</small>
+          </div>
         </div>
       </div>
 
       <button type="submit" id="submitBtn" class="btn btn-primary">
-        <span>Verify Seller Details</span>
+        <span id="submitBtnText">Verify Seller Details</span>
       </button>
       <div id="errorAlert" class="alert alert-error hidden"></div>
     </form>
@@ -80,17 +99,71 @@
         <strong>Brand Status:</strong> <span id="brandStatusText">Checking...</span>
       </div>
 
-      <div class="section-title">Why this verdict:</div>
+      <!-- Action Button: Open Official Website First -->
+      <div id="officialSiteAction" class="official-action-box hidden">
+        <a id="officialSiteLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-official">
+          🌐 <span id="officialSiteBtnText">Open Official Website</span>
+        </a>
+      </div>
+
+      <div class="section-title" id="whyVerdictTitle">Why this verdict:</div>
       <ul id="reasonsList" class="reasons-list"></ul>
 
-      <div class="section-title">What you should do:</div>
+      <div class="section-title" id="whatToDoTitle">What you should do:</div>
       <ul id="adviceList" class="advice-list"></ul>
 
+      <div class="report-cta-box">
+        <button type="button" id="openReportModalBtn" class="btn btn-report">
+          🚨 <span id="reportBtnText">Report This Seller</span>
+        </button>
+      </div>
+
       <div class="disclaimer-text">
-        <small>⚠️ Automated estimate, not legal proof. Always verify through the brand's official website or app before transferring money.</small>
+        <small id="disclaimerText">⚠️ Automated estimate, not legal proof. Always verify through the brand's official website or app before transferring money.</small>
       </div>
 
       <button type="button" id="resetBtn" class="btn btn-secondary">Check Another Seller</button>
+    </div>
+
+    <!-- Report Modal -->
+    <div id="reportModal" class="modal hidden">
+      <div class="modal-content card">
+        <div class="modal-header">
+          <h3>🚨 Report Suspicious Contact</h3>
+          <button type="button" id="closeReportModalBtn" class="close-modal">&times;</button>
+        </div>
+        <p class="modal-desc">Your report helps protect other shoppers. Identifiers are cryptographically anonymized before saving.</p>
+
+        <form id="reportForm">
+          <div class="form-group">
+            <label for="reportIdentifier">Reported Number / Link / UPI ID</label>
+            <input type="text" id="reportIdentifier" required>
+          </div>
+          <div class="form-group">
+            <label for="reportType">Identifier Type</label>
+            <select id="reportType" class="select-input">
+              <option value="phone">Phone Number</option>
+              <option value="domain">Website Domain / Link</option>
+              <option value="upi">UPI ID</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="reportCategory">Category</label>
+            <select id="reportCategory" class="select-input">
+              <option value="impersonation">Brand Impersonation / Fake Support</option>
+              <option value="advance_fee">Demanded Advance Payment</option>
+              <option value="lottery_scam">Fake Lottery / Prize Scam</option>
+              <option value="other">Other Suspicious Behavior</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="reportNotes">Optional details</label>
+            <textarea id="reportNotes" rows="2" placeholder="Brief details about what happened..."></textarea>
+          </div>
+          <button type="submit" id="submitReportBtn" class="btn btn-danger">Submit Report</button>
+          <div id="reportAlert" class="alert hidden"></div>
+        </form>
+      </div>
     </div>
   </main>
 

@@ -10,7 +10,7 @@ Handles:
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import phonenumbers
@@ -340,12 +340,12 @@ def detect_claimed_brand(
 class CheckContext:
     """Normalized context passed to all verification scorers."""
 
-    phone: dict[str, Any]
-    extracted_phones: list[dict[str, Any]]
-    urls: list[dict[str, Any]]
-    upi_ids: list[str]
-    payment: dict[str, Any]
-    brand: dict[str, Any] | None
+    phone: dict[str, Any] = field(default_factory=dict)
+    extracted_phones: list[dict[str, Any]] = field(default_factory=list)
+    urls: list[dict[str, Any]] = field(default_factory=list)
+    upi_ids: list[str] = field(default_factory=list)
+    payment: dict[str, Any] = field(default_factory=dict)
+    brand: dict[str, Any] | None = None
     message_text: str | None = None
     language: str = "en"
 

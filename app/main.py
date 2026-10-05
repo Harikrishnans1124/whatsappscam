@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import logging
 import time
 import uuid
@@ -11,7 +12,8 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import tldextract
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Security, status
+from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -24,6 +26,7 @@ from app.agents.payment import payment_scorer
 from app.audit import append_audit_entry, build_audit_identifiers
 from app.breaker import guarded_scorer
 from app.cache import check_rate_limit
+from app.config import settings
 from app.decision import calculate_decision
 from app.errors import setup_exception_handlers
 from app.explain import generate_explanation
@@ -31,33 +34,55 @@ from app.extraction import extract_check_context, normalize_phone
 from app.registry import (
     get_all_brands,
     get_brand_by_slug,
+    get_registry_freshness_report,
     get_report_stats,
+    get_reports_queue,
     get_session_factory,
     init_db,
     record_report,
+    upsert_brand,
 )
 from app.schemas import (
+    BrandCreateUpdateRequest,
     BrandMatchResult,
     BrandResponse,
     BrandSourceResponse,
     ChannelMatch,
     CheckRequest,
     CheckResponse,
+    FreshnessItem,
     ReportCreateRequest,
+    ReportQueueItem,
     ReportResponse,
     ScorerResultItem,
 )
+from app.telemetry import setup_telemetry, traced_scorer, tracer
 from scripts.seed_registry import seed_registry
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 logger = logging.getLogger(__name__)
 
+ADMIN_API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+
 
 def get_db():
     session_factory = get_session_factory()
     with session_factory() as session:
         yield session
+
+
+def require_admin_api_key(
+    api_key: str | None = Security(ADMIN_API_KEY_HEADER),
+) -> str:
+    """Validate X-API-Key header against configured admin key."""
+    expected_key = settings.get("admin_api_key", "dev-admin-key-change-me")
+    if not api_key or not hmac.compare_digest(api_key, expected_key):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Invalid or missing X-API-Key header.",
+        )
+    return api_key
 
 
 @asynccontextmanager
@@ -74,6 +99,8 @@ async def lifespan(app: FastAPI):
                 seed_registry(yaml_path)
     # Pre-load ML models at startup to avoid first-request timeout
     load_ml_model()
+    # Setup OpenTelemetry tracing
+    setup_telemetry(app)
     yield
 
 
@@ -151,6 +178,114 @@ async def get_brand(slug: str, db: Annotated[Session, Depends(get_db)]):
     )
 
 
+# --- Admin Endpoints (X-API-Key Protected) ---
+
+
+@app.post(
+    "/v1/admin/brands",
+    response_model=BrandResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Admin"],
+)
+async def admin_create_brand(
+    payload: BrandCreateUpdateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    _admin_auth: Annotated[str, Depends(require_admin_api_key)],
+):
+    """Create a new brand in the verified registry."""
+    existing = get_brand_by_slug(db, payload.slug)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Brand with slug '{payload.slug}' already exists. Use PUT to update.",
+        )
+    try:
+        brand = upsert_brand(db, payload.model_dump())
+    except ValueError as val_err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(val_err),
+        )
+
+    return BrandResponse(
+        slug=brand.slug,
+        name=brand.name,
+        official_domains=[d.domain for d in brand.domains],
+        official_phones=[p.phone_e164 for p in brand.phones],
+        payment_policy=brand.payment_policy,
+        sources=[
+            BrandSourceResponse(url=s.url, verified_on=s.verified_on)
+            for s in brand.sources
+        ],
+    )
+
+
+@app.put(
+    "/v1/admin/brands/{slug}",
+    response_model=BrandResponse,
+    tags=["Admin"],
+)
+async def admin_update_brand(
+    slug: str,
+    payload: BrandCreateUpdateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    _admin_auth: Annotated[str, Depends(require_admin_api_key)],
+):
+    """Update or re-verify an existing brand in the registry."""
+    brand_data = payload.model_dump()
+    brand_data["slug"] = slug  # Target URL slug takes precedence
+    try:
+        brand = upsert_brand(db, brand_data)
+    except ValueError as val_err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(val_err),
+        )
+
+    return BrandResponse(
+        slug=brand.slug,
+        name=brand.name,
+        official_domains=[d.domain for d in brand.domains],
+        official_phones=[p.phone_e164 for p in brand.phones],
+        payment_policy=brand.payment_policy,
+        sources=[
+            BrandSourceResponse(url=s.url, verified_on=s.verified_on)
+            for s in brand.sources
+        ],
+    )
+
+
+@app.get(
+    "/v1/admin/reports",
+    response_model=list[ReportQueueItem],
+    tags=["Admin"],
+)
+async def admin_list_reports(
+    db: Annotated[Session, Depends(get_db)],
+    _admin_auth: Annotated[str, Depends(require_admin_api_key)],
+    limit: int = 100,
+):
+    """List aggregated community reports queue for admin review."""
+    return get_reports_queue(db, limit=limit)
+
+
+@app.get(
+    "/v1/admin/freshness",
+    response_model=list[FreshnessItem],
+    tags=["Admin"],
+)
+async def admin_freshness_report(
+    db: Annotated[Session, Depends(get_db)],
+    _admin_auth: Annotated[str, Depends(require_admin_api_key)],
+    max_age_days: int = 90,
+):
+    """List freshness status for all registered brands."""
+    return get_registry_freshness_report(db, max_age_days=max_age_days)
+
+
+# --- Core Checks Endpoint ---
+
+
 @app.post("/v1/checks", response_model=CheckResponse, tags=["Checks"])
 async def create_check(
     payload: CheckRequest,
@@ -191,13 +326,13 @@ async def create_check(
         registry_brands=registry_list,
     )
 
-    # 3. Execute all 5 scorers in parallel guarded by circuit breaker & timeouts
+    # 3. Execute all 5 scorers in parallel guarded by circuit breaker & timeouts, traced via OpenTelemetry
     brand_res, pay_res, msg_res, dom_res, num_res = await asyncio.gather(
-        guarded_scorer("brand_identity", brand_identity_scorer(ctx)),
-        guarded_scorer("payment", payment_scorer(ctx)),
-        guarded_scorer("message", message_scorer(ctx)),
-        guarded_scorer("domain", domain_scorer(ctx)),
-        guarded_scorer("number", number_scorer(ctx, db_session=db)),
+        traced_scorer("brand_identity", guarded_scorer("brand_identity", brand_identity_scorer(ctx))),
+        traced_scorer("payment", guarded_scorer("payment", payment_scorer(ctx))),
+        traced_scorer("message", guarded_scorer("message", message_scorer(ctx))),
+        traced_scorer("domain", guarded_scorer("domain", domain_scorer(ctx))),
+        traced_scorer("number", guarded_scorer("number", number_scorer(ctx, db_session=db))),
     )
 
     raw_scores: dict[str, dict[str, Any]] = {
@@ -208,11 +343,21 @@ async def create_check(
         "number": num_res,
     }
 
-    # 4. Compute verdict through decision layer
-    decision = calculate_decision(ctx, raw_scores)
+    # 4. Compute verdict through decision layer (traced)
+    with tracer.start_as_current_span("decision_layer") as dec_span:
+        decision = calculate_decision(ctx, raw_scores)
+        dec_span.set_attribute("verdict", decision.verdict)
+        if decision.risk_score is not None:
+            dec_span.set_attribute("risk_score", float(decision.risk_score))
+        dec_span.set_attribute("degraded", decision.degraded)
 
-    # 5. Generate human-readable reasons, summary, and actionable advice
-    explanation = generate_explanation(ctx, decision.verdict, decision.reason_codes)
+    # 5. Generate human-readable reasons, summary, and actionable advice (with multilingual i18n)
+    explanation = generate_explanation(
+        ctx,
+        decision.verdict,
+        decision.reason_codes,
+        language=payload.language,
+    )
 
     # 6. Format brand match metadata
     brand_match_result: BrandMatchResult | None = None
@@ -243,24 +388,24 @@ async def create_check(
 
     latency = round((time.perf_counter() - start_time) * 1000, 2)
 
-    # 8. Record in hash-chained audit log (privacy-preserving HMAC hashes only)
+    # 8. Record in hash-chained audit log (privacy-preserving HMAC hashes only, traced)
     hashed_ids = build_audit_identifiers(
         phone_e164=ctx.phone.get("e164"),
         domains=[u.get("registrable_domain") for u in ctx.urls if u.get("registrable_domain")],
         upi_id=ctx.payment.get("upi_id"),
     )
-    try:
-        append_audit_entry(
-            check_id=check_id,
-            verdict=decision.verdict,
-            risk_score=decision.risk_score,
-            reason_codes=decision.reason_codes,
-            flags=decision.flags,
-            hashed_identifiers=hashed_ids,
-        )
-    except (OSError, ValueError) as exc:
-        # Audit failure must not fail the user's check request
-        logger.warning("Failed to record audit log entry: %s", exc)
+    with tracer.start_as_current_span("audit_log"):
+        try:
+            append_audit_entry(
+                check_id=check_id,
+                verdict=decision.verdict,
+                risk_score=decision.risk_score,
+                reason_codes=decision.reason_codes,
+                flags=decision.flags,
+                hashed_identifiers=hashed_ids,
+            )
+        except (OSError, ValueError) as exc:
+            logger.warning("Failed to record audit log entry: %s", exc)
 
     return CheckResponse(
         check_id=check_id,
@@ -274,6 +419,10 @@ async def create_check(
         advice=explanation["advice"],
         degraded=decision.degraded,
         latency_ms=latency,
+        disclaimer=explanation.get(
+            "disclaimer",
+            "Automated estimate, not proof. Always confirm through the brand's official website or app.",
+        ),
     )
 
 
