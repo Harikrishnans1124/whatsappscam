@@ -28,7 +28,7 @@ def seed_registry(yaml_path: Path, db_url: str | None = None) -> int:
         print(f"Error: YAML file not found: {yaml_path}", file=sys.stderr)
         return 1
 
-    with open(yaml_path, "r", encoding="utf-8") as f:
+    with open(yaml_path, encoding="utf-8") as f:
         brands_data = yaml.safe_load(f)
 
     if not isinstance(brands_data, list):

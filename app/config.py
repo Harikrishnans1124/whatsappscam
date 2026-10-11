@@ -14,7 +14,7 @@ def load_settings(config_path: Path | str | None = None) -> dict[str, Any]:
     
     config: dict[str, Any] = {}
     if target_path.exists():
-        with open(target_path, "r", encoding="utf-8") as f:
+        with open(target_path, encoding="utf-8") as f:
             config = yaml.safe_load(f) or {}
 
     # Environment variable overrides

@@ -181,7 +181,8 @@ def print_results(results: dict[str, Any], title: str = "Evaluation Results"):
     print("\n" + "-" * 70)
     print(" CONFUSION MATRIX")
     print("-" * 70)
-    header = f"{'Expected \\ Actual':<20}" + "".join(f"{v:>15}" for v in VERDICTS)
+    col_label = "Expected \\ Actual"
+    header = f"{col_label:<20}" + "".join(f"{v:>15}" for v in VERDICTS)
     print(header)
     print("-" * 80)
     for exp in VERDICTS:

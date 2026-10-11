@@ -258,7 +258,7 @@ async def domain_scorer(
     has_new_domain = False
     rdap_failed = False
 
-    ref_dt = reference_date or dt.datetime.now(dt.timezone.utc).date()
+    ref_dt = reference_date or dt.datetime.now(dt.UTC).date()
 
     for item in context.urls:
         registrable = item.get("registrable_domain", "").lower()

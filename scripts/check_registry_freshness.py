@@ -17,7 +17,7 @@ def check_freshness(max_age_days: int = 90, db_url: str | None = None) -> int:
     engine = get_engine(db_url)
     session_factory = get_session_factory(engine)
 
-    today = dt.datetime.now(dt.timezone.utc).date()
+    today = dt.datetime.now(dt.UTC).date()
     stale_count = 0
 
     with session_factory() as session:

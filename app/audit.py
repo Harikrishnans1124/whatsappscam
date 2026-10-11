@@ -82,7 +82,7 @@ def append_audit_entry(
 
     with _AUDIT_LOCK:
         prev_hash = get_last_entry_hash(path)
-        timestamp = dt.datetime.now(dt.timezone.utc).isoformat()
+        timestamp = dt.datetime.now(dt.UTC).isoformat()
 
         # Build entry content without entry_hash
         entry_payload = {

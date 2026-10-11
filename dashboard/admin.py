@@ -124,7 +124,7 @@ with tab2:
         with col_s1:
             source_url = st.text_input("Source URL *", placeholder="e.g. https://www.apple.com/in/contact/")
         with col_s2:
-            verified_date = st.date_input("Verified Date *", value=dt.datetime.now(dt.timezone.utc).date())
+            verified_date = st.date_input("Verified Date *", value=dt.datetime.now(dt.UTC).date())
 
         is_update = st.checkbox("This is an update to an existing brand", value=False)
         submitted = st.form_submit_button("💾 Save Brand Entry")

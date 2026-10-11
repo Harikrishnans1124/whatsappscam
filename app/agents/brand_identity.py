@@ -64,7 +64,7 @@ def evaluate_brand_identity(
     brand_slug = brand_data.get("slug")
 
     # Check for stale registry entry
-    ref = reference_date or dt.datetime.now(dt.timezone.utc).date()
+    ref = reference_date or dt.datetime.now(dt.UTC).date()
     latest_verified_date: dt.date | None = None
     for src in brand_data.get("sources", []):
         try:

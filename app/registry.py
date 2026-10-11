@@ -42,12 +42,12 @@ class Brand(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     payment_policy: Mapped[str] = mapped_column(Text, default="", nullable=False)
     created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime, default=lambda: dt.datetime.now(dt.timezone.utc), nullable=False
+        DateTime, default=lambda: dt.datetime.now(dt.UTC), nullable=False
     )
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime,
-        default=lambda: dt.datetime.now(dt.timezone.utc),
-        onupdate=lambda: dt.datetime.now(dt.timezone.utc),
+        default=lambda: dt.datetime.now(dt.UTC),
+        onupdate=lambda: dt.datetime.now(dt.UTC),
         nullable=False,
     )
 
@@ -142,7 +142,7 @@ class Report(Base):
     category: Mapped[str] = mapped_column(String(50), default="scam", nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime, default=lambda: dt.datetime.now(dt.timezone.utc), nullable=False
+        DateTime, default=lambda: dt.datetime.now(dt.UTC), nullable=False
     )
 
 
@@ -306,7 +306,7 @@ def is_brand_stale(brand: Brand, max_age_days: int = 90, ref_date: dt.date | Non
     if not brand.sources:
         return True
     
-    reference = ref_date or dt.datetime.now(dt.timezone.utc).date()
+    reference = ref_date or dt.datetime.now(dt.UTC).date()
     latest_date: dt.date | None = None
     for src in brand.sources:
         try:
@@ -356,7 +356,7 @@ def record_report(
     ).scalar_one_or_none()
 
     if existing:
-        existing.created_at = dt.datetime.now(dt.timezone.utc)
+        existing.created_at = dt.datetime.now(dt.UTC)
         if notes:
             existing.notes = notes
         session.commit()
@@ -453,7 +453,7 @@ def get_registry_freshness_report(
     ref_date: dt.date | None = None,
 ) -> list[dict[str, Any]]:
     """Return freshness report for all registered brands."""
-    today = ref_date or dt.datetime.now(dt.timezone.utc).date()
+    today = ref_date or dt.datetime.now(dt.UTC).date()
     brands = get_all_brands(session)
     report = []
     for b in brands:
