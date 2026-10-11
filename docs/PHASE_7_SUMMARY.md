@@ -15,12 +15,14 @@ Phase 7 finalized the TrustShop AI project for production readiness, complete do
   - Decision Layer (Hard flag floors and dynamic weight renormalization)
   - Output & Observability (i18n English/Malayalam/Hindi, OpenTelemetry Jaeger spans, SHA-256 hash-chained audit log).
 
-### 2b. Automated CI Workflow (`.github/workflows/ci.yml`)
-- Configured GitHub Actions pipeline running on every push and pull request to `main`:
-  - Python 3.13 setup with pip caching
-  - Strict linting with `ruff check .`
-  - Automated test execution with `pytest -v` (136 tests)
-  - Quantitative benchmark verification with `python eval/run_eval.py` ensuring 0 unsafe passes.
+### 2b. Automated CI/CD Workflow (`.github/workflows/ci-cd.yml`)
+- Configured production GitHub Actions CI/CD pipeline running on push, PR, version tags (`v*`), and manual dispatch:
+  - **Lint & Static Analysis:** Python 3.13 setup, `ruff check .`, and brand registry freshness verification.
+  - **Multi-version Test Matrix:** Python 3.11 and 3.13 test suites with Redis service container, executing `pytest -v` (136 tests).
+  - **Benchmark Quality Gate:** Quantitative benchmark verification with `python eval/run_eval.py` enforcing 0 unsafe passes.
+  - **Container Smoke Test:** Full Docker container build, startup verification, and live `/healthz`, `/readyz`, and `/v1/brands` HTTP probes.
+  - **Continuous Delivery:** Automated container packaging and publish to GitHub Container Registry (`ghcr.io`) with semantic versioning.
+  - **Continuous Deployment & Release:** Environment-targeted deployment notifications and automated GitHub Releases on version tags.
 
 ### 2c. Measured Metrics in Documentation
 - Replaced all `TBD` placeholders in `README.md` and `docs/BUILD_LOG.md` with true measured benchmark figures:

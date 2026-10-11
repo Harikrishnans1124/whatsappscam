@@ -1,0 +1,38 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Python bytecode & environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# Testing & linting artifacts
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+reports/
+
+# Evaluation data (only needed during eval phase, not in container)
+eval/cases.jsonl
+
+# Local database and audit logs (initialized or mounted at runtime)
+data/*.db
+data/*.jsonl
+*.log
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

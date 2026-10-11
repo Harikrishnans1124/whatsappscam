@@ -1,0 +1,241 @@
+name: TrustShop CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*.*.*', 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      deploy_env:
+        description: 'Target Deployment Environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  lint:
+    name: Lint & Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install Linting Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pyyaml
+
+      - name: Run Ruff Linter
+        run: |
+          ruff check .
+
+      - name: Validate Brand Registry Freshness
+        run: |
+          python scripts/check_registry_freshness.py --max-age-days 365
+
+  test:
+    name: Test & Evaluate (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      REDIS_URL: redis://localhost:6379/0
+      HMAC_SECRET: test-hmac-secret-key-32-bytes-long!
+      ADMIN_API_KEY: test-admin-key-ci
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install Project Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run Pytest Test Suite
+        run: |
+          pytest -v --junitxml=reports/test-results-${{ matrix.python-version }}.xml
+
+      - name: Run Scam Detection Benchmark Evaluation
+        run: |
+          python eval/run_eval.py
+
+      - name: Upload Test Report Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-python-${{ matrix.python-version }}
+          path: reports/
+          if-no-files-found: ignore
+
+  container-smoke-test:
+    name: Container Build & Health Smoke Test
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        run: |
+          docker build -t trustshop-api:smoke-test .
+
+      - name: Run Container & Smoke Test Health Endpoints
+        run: |
+          docker run -d --name trustshop-api-test -p 8000:8000 \
+            -e HMAC_SECRET=smoke-test-secret \
+            -e ADMIN_API_KEY=smoke-test-admin \
+            trustshop-api:smoke-test
+
+          echo "Waiting for TrustShop API container to report healthy..."
+          for i in {1..30}; do
+            if curl -s -f http://localhost:8000/healthz; then
+              echo "Liveness probe healthy!"
+              break
+            fi
+            sleep 1
+          done
+
+          echo "Verifying readiness probe (/readyz)..."
+          curl -s -f http://localhost:8000/readyz || (docker logs trustshop-api-test && exit 1)
+
+          echo "Verifying brands endpoint (/v1/brands)..."
+          curl -s -f http://localhost:8000/v1/brands || (docker logs trustshop-api-test && exit 1)
+
+      - name: Clean up Smoke Test Container
+        if: always()
+        run: |
+          docker stop trustshop-api-test || true
+          docker rm trustshop-api-test || true
+
+  publish-image:
+    name: Build & Publish Container Image (GHCR)
+    needs: [container-smoke-test]
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Environment
+    needs: [publish-image]
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.deploy_env || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging') }}
+
+    steps:
+      - name: Deploy application
+        run: |
+          DEPLOY_ENV="${{ github.event.inputs.deploy_env || (startsWith(github.ref, 'refs/tags/v') && 'production' || 'staging') }}"
+          IMAGE_TAG="ghcr.io/${{ github.repository }}:${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'latest' }}"
+          echo "Deploying $IMAGE_TAG to $DEPLOY_ENV environment..."
+
+          if [ -n "${{ secrets.DEPLOY_WEBHOOK_URL }}" ]; then
+            echo "Triggering automated deploy webhook..."
+            curl -s -X POST "${{ secrets.DEPLOY_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"image\": \"$IMAGE_TAG\", \"env\": \"$DEPLOY_ENV\", \"ref\": \"${{ github.ref }}\", \"sha\": \"${{ github.sha }}\"}"
+            echo "Deployment webhook successfully notified."
+          else
+            echo "No DEPLOY_WEBHOOK_URL secret configured; container image successfully published to GHCR and ready for deployment."
+          fi
+
+  create-release:
+    name: Create GitHub Release
+    needs: [publish-image]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            registry/brands.yaml

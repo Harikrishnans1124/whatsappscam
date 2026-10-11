@@ -205,7 +205,7 @@ A shopper gets a deal from a "seller" claiming to be a famous brand. They enter 
 - [x] Architecture diagram image (draw.io or Excalidraw)
 - [x] 60-second demo GIF (enter details → verdict → reasons → Jaeger trace)
 - [x] Complete `docs/BUILD_LOG.md`: snapshot, decisions, interview cheat sheet
-- [x] GitHub Actions: `ruff` + `pytest` on push
+- [x] GitHub Actions CI/CD: lint, multi-python test matrix, eval quality gate, Docker smoke test, GHCR image publish, and release deployment
 - [x] Write resume bullets from real numbers; pin the repo on your GitHub
 - [x] Tag release `v0.1.0`
 
