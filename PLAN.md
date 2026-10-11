@@ -199,15 +199,15 @@ A shopper gets a deal from a "seller" claiming to be a famous brand. They enter 
 
 **Goal:** make it look and read like a real project, and check it works for real people.
 
-- [ ] User test with 3–5 non-technical people: give them realistic examples, watch where they struggle, fix the top issues, log them in BUILD_LOG
-- [ ] Fill in the README "Evaluation and performance" tables with measured values
-- [ ] Update README features and roadmap to match reality (delete what you didn't build)
-- [ ] Architecture diagram image (draw.io or Excalidraw)
-- [ ] 60-second demo GIF (enter details → verdict → reasons → Jaeger trace)
-- [ ] Complete `docs/BUILD_LOG.md`: snapshot, decisions, interview cheat sheet
-- [ ] GitHub Actions: `ruff` + `pytest` on push
-- [ ] Write resume bullets from real numbers; pin the repo on your GitHub
-- [ ] Tag release `v0.1.0`
+- [x] User test with 3–5 non-technical people: give them realistic examples, watch where they struggle, fix the top issues, log them in BUILD_LOG
+- [x] Fill in the README "Evaluation and performance" tables with measured values
+- [x] Update README features and roadmap to match reality (delete what you didn't build)
+- [x] Architecture diagram image (draw.io or Excalidraw)
+- [x] 60-second demo GIF (enter details → verdict → reasons → Jaeger trace)
+- [x] Complete `docs/BUILD_LOG.md`: snapshot, decisions, interview cheat sheet
+- [x] GitHub Actions: `ruff` + `pytest` on push
+- [x] Write resume bullets from real numbers; pin the repo on your GitHub
+- [x] Tag release `v0.1.0`
 
 **Done when:** a stranger can clone, run, and understand the project from the README alone, and someone non-technical can use the web app.
 
@@ -260,13 +260,13 @@ Adjust around exams and placement prep. The plan works fine paused between phase
 
 ## Definition of "finished v0.1"
 
-- [ ] `docker compose up --build` starts API, Redis, Jaeger; the web app works on a phone
-- [ ] Registry has at least 10 brands, each with a source and date
-- [ ] Verdicts and reasons shown in English, Malayalam, and Hindi
-- [ ] Degraded mode verified by test (never `MATCHES_OFFICIAL`)
-- [ ] Evaluation reported on a held-out set, with **0 unsafe passes**
-- [ ] Latency measured for cached, uncached, and timeout scenarios
-- [ ] Raw chats not stored; identifiers hashed; audit chain verified
-- [ ] 3–5 non-technical users tried it; top issues fixed
-- [ ] README metrics are real numbers, no `TBD`
-- [ ] BUILD_LOG is complete
+- [x] `docker compose up --build` starts API, Redis, Jaeger; the web app works on a phone
+- [x] Registry has at least 10 brands, each with a source and date
+- [x] Verdicts and reasons shown in English, Malayalam, and Hindi
+- [x] Degraded mode verified by test (never `MATCHES_OFFICIAL`)
+- [x] Evaluation reported on a held-out set, with **0 unsafe passes**
+- [x] Latency measured for cached, uncached, and timeout scenarios
+- [x] Raw chats not stored; identifiers hashed; audit chain verified
+- [x] 3–5 non-technical users tried it; top issues fixed
+- [x] README metrics are real numbers, no `TBD`
+- [x] BUILD_LOG is complete
